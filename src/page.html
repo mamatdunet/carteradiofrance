@@ -1,0 +1,693 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Puis-je capter la nouvelle version numérique de Radio France 🥹 ?</title>
+<meta name="description" content="Saisissez votre adresse et votre étage : estimation de la réception DAB+ et FM à partir du relief et des bâtiments IGN et des émetteurs déclarés à l'ANFR.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl.css">
+<link rel="stylesheet" href="https://unpkg.com/carte-facile@0.10.2/dist/carte-facile.css">
+<script type="importmap">
+{ "imports": {
+  "maplibre-gl": "https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl.mjs",
+  "carte-facile": "https://unpkg.com/carte-facile@0.10.2/dist/carte-facile.esm.js"
+} }
+</script>
+<style>
+/* Layout : question en titre, contexte, saisie ; puis grand encart de diagnostic, carte 3D, et détail technique replié. */
+:root{
+  --paper:#eef2f4; --panel:#ffffff; --ink:#14232f; --muted:#5a6b78; --rule:#d3dce2; --border:#b9c6cf;
+  --terrain:#c9b99a; --sky:#e6eef3;
+  --fm:#1f6f8b; --dab:#7a4fb3; --chip:#e3eaef; --focus:#1f6f8b;
+  --ok:#2f8a57; --mid:#b8900f; --hi:#e07a10; --vhi:#c0392b;
+  --ok-soft:#e2f2e8; --mid-soft:#f7efcf; --hi-soft:#fbe6d0; --vhi-soft:#f7dcd8;
+  --bld-lo:#d9e1e6; --bld-hi:#3f5260; --own:#14232f;
+  --display:"Barlow Semi Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"Source Sans 3","Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#0f171d; --panel:#16212a; --ink:#e4ecf1; --muted:#97a8b4; --rule:#2a3a46; --border:#3a4d5a;
+  --terrain:#6b5f4a; --sky:#14202a;
+  --fm:#4fb3d4; --dab:#b48ae6; --chip:#22313c; --focus:#4fb3d4;
+  --ok:#4cc27f; --mid:#e0c048; --hi:#f39a3a; --vhi:#ef6b5c;
+  --ok-soft:#173326; --mid-soft:#332c12; --hi-soft:#3a2614; --vhi-soft:#3a1d1a;
+  --bld-lo:#33454f; --bld-hi:#a9bccb; --own:#e4ecf1; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --paper:#0f171d; --panel:#16212a; --ink:#e4ecf1; --muted:#97a8b4; --rule:#2a3a46; --border:#3a4d5a;
+  --terrain:#6b5f4a; --sky:#14202a;
+  --fm:#4fb3d4; --dab:#b48ae6; --chip:#22313c; --focus:#4fb3d4;
+  --ok:#4cc27f; --mid:#e0c048; --hi:#f39a3a; --vhi:#ef6b5c;
+  --ok-soft:#173326; --mid-soft:#332c12; --hi-soft:#3a2614; --vhi-soft:#3a1d1a;
+  --bld-lo:#33454f; --bld-hi:#a9bccb; --own:#e4ecf1; color-scheme:dark;}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 40px}
+.wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+h1,h2,h3{font-family:var(--display);font-weight:700;margin:0;text-wrap:balance}
+h1{font-size:clamp(1.9rem,1.3rem + 2.6vw,3.1rem);line-height:1.02}
+h2{font-size:1.45rem} h3{font-size:1.15rem}
+p{margin:0}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.lbl{font-family:var(--display);font-weight:600;font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.sub{color:var(--muted)}
+a{color:var(--fm)}
+[hidden]{display:none!important}
+
+.head{display:flex;flex-direction:column;gap:12px}
+.context{font-size:1.02rem;color:var(--ink)}
+.context .sub{display:block;margin-top:6px;font-size:.92rem}
+
+.form{background:var(--panel);border:1px solid var(--rule);border-radius:8px;padding:16px;display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px 14px;align-items:end}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0;position:relative}
+.field input{font:inherit;font-size:1.05rem;padding:11px 12px;border:1px solid var(--border);border-radius:6px;background:var(--paper);color:var(--ink);width:100%}
+.field input:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.floor{display:flex;align-items:center;gap:6px}
+.floor input{width:5em;text-align:center;font-family:var(--mono)}
+.floor button{font:600 1.15rem var(--mono);width:42px;height:46px;border:1px solid var(--border);border-radius:6px;background:var(--paper);color:var(--ink);cursor:pointer}
+.go{font:700 1.05rem var(--display);letter-spacing:.03em;padding:0 24px;border:0;border-radius:6px;background:var(--ink);color:var(--panel);cursor:pointer;height:48px}
+.go:disabled{opacity:.5;cursor:default}
+.sugg{position:absolute;top:100%;left:0;right:0;margin:2px 0 0;background:var(--panel);border:1px solid var(--border);border-radius:6px;z-index:2000;list-style:none;padding:4px 0;max-height:300px;overflow:auto;box-shadow:0 6px 20px rgba(0,0,0,.14)}
+.sugg li{padding:9px 12px;cursor:pointer;display:flex;justify-content:space-between;gap:12px}
+.sugg li[aria-selected="true"],.sugg li:hover{background:var(--chip)}
+.sugg small{color:var(--muted);font-family:var(--mono);white-space:nowrap}
+.status{font-size:.9rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 18px;grid-column:1/-1;min-height:1.4em}
+.status span.done::before{content:"✓ ";color:var(--ok)}
+.status span.run::before{content:"… ";color:var(--hi)}
+.status span.err{color:var(--vhi)}
+
+/* Le diagnostic */
+.diag{border-radius:10px;border:1px solid var(--rule);background:var(--panel);overflow:hidden}
+.diag .top{padding:22px 24px 20px;display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 22px;align-items:center;background:var(--tone-soft,var(--chip))}
+.diag .dial{grid-row:span 2;width:92px;height:92px;border-radius:50%;display:grid;place-items:center;background:var(--panel);border:6px solid var(--tone,var(--muted))}
+.diag .dial svg{width:44px;height:44px}
+.diag .where{font-size:.95rem;color:var(--muted)}
+.diag .answer{font-family:var(--display);font-weight:700;font-size:clamp(1.8rem,1.3rem + 2.2vw,2.8rem);line-height:1.02;color:var(--ink)}
+.diag .answer em{font-style:normal;color:var(--tone)}
+.diag .body{padding:18px 24px 22px;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:18px 32px}
+.diag .why{font-size:1.05rem;max-width:60ch}
+.diag ul.tips{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px}
+.diag ul.tips li{display:grid;grid-template-columns:22px 1fr;gap:8px;align-items:start}
+.diag ul.tips li::before{content:"";width:10px;height:10px;margin-top:7px;border-radius:2px;background:var(--tone,var(--muted))}
+.diag .fmline{grid-column:1/-1;border-top:1px solid var(--rule);padding-top:14px;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline}
+.pill{display:inline-flex;align-items:center;gap:6px;font:700 .85rem var(--display);letter-spacing:.03em;padding:3px 9px;border-radius:4px;background:var(--chip)}
+.pill i{width:9px;height:9px;border-radius:50%}
+.diag .fine{grid-column:1/-1;font-size:.85rem;color:var(--muted)}
+
+.mapcard{position:relative;height:520px;border-radius:8px;overflow:hidden;border:1px solid var(--rule);background:var(--panel)}
+#map{position:absolute;inset:0}
+.mapbar{position:absolute;top:10px;left:10px;z-index:5;display:flex;gap:6px}
+.mapbar button{font:600 .85rem var(--display);padding:7px 11px;border:1px solid var(--border);border-radius:5px;background:var(--panel);color:var(--ink);cursor:pointer}
+.mapbar button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+.maplegend{position:absolute;left:10px;bottom:26px;z-index:5;background:var(--panel);border:1px solid var(--rule);border-radius:5px;padding:8px 10px;font-size:.78rem;color:var(--muted);display:flex;flex-direction:column;gap:5px;max-width:240px}
+.maplegend .row{display:flex;align-items:center;gap:8px}
+.maplegend .ln{width:22px;height:4px;border-radius:2px}
+.maplegend .dot{width:10px;height:10px;border-radius:50%;border:2px solid var(--panel);box-shadow:0 0 0 1px var(--border)}
+.maplibregl-popup-content{background:var(--panel);color:var(--ink);font-family:var(--body);font-size:.85rem;padding:7px 10px;border-radius:5px;box-shadow:0 3px 12px rgba(0,0,0,.18)}
+.maplibregl-popup-tip{border-top-color:var(--panel)!important;border-bottom-color:var(--panel)!important}
+
+details.tech{background:var(--panel);border:1px solid var(--rule);border-radius:8px}
+details.tech>summary{cursor:pointer;padding:14px 18px;font:600 1.05rem var(--display);letter-spacing:.02em;list-style:none;display:flex;justify-content:space-between;gap:12px}
+details.tech>summary::-webkit-details-marker{display:none}
+details.tech>summary::after{content:"+";font-family:var(--mono);color:var(--muted)}
+details.tech[open]>summary::after{content:"−"}
+details.tech .inner{padding:0 18px 18px;display:flex;flex-direction:column;gap:18px}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{padding:9px 10px;text-align:left;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font-family:var(--display);font-weight:600;font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+tr.tx{cursor:pointer}
+tr.tx:hover td,tr.tx:focus-visible td{background:var(--chip)}
+.badge{display:inline-flex;align-items:center;gap:6px;font:600 .8rem var(--display);padding:2px 8px;border-radius:3px;background:var(--chip);white-space:nowrap}
+.badge i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.txname{font-weight:600}
+.txmeta{font-size:.8rem;color:var(--muted)}
+.profiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,480px),1fr));gap:14px}
+.prof{border:1px solid var(--rule);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.prof .ph{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:4px 12px}
+.prof .figs{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.85rem;color:var(--muted)}
+.prof .figs b{font-family:var(--mono);color:var(--ink);font-weight:500}
+.prof svg{display:block;width:100%;height:auto}
+.prof svg text{font-family:var(--mono);font-size:10px;fill:var(--muted)}
+.cols2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.method{font-size:.88rem;color:var(--muted);display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:12px 24px}
+.method ul{margin:4px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:3px}
+
+footer{font-size:.82rem;color:var(--muted);border-top:1px solid var(--rule);padding-top:12px}
+
+@media (max-width:760px){.diag .body{grid-template-columns:1fr}.mapcard{height:440px}}
+@media (max-width:620px){.form{grid-template-columns:1fr 1fr}.form .field.addr{grid-column:1/-1}.go{width:100%}.diag .top{grid-template-columns:1fr}.diag .dial{grid-row:auto;width:64px;height:64px;border-width:5px}.diag .dial svg{width:30px;height:30px}}
+@media (max-width:520px){.cols2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="head">
+    <span class="lbl">FM, DAB+ et réorganisation de Radio France</span>
+    <h1>Puis-je capter la nouvelle version numérique de Radio France 🥹 ?</h1>
+    <p class="context">Depuis la nuit du 21 au 22 juillet 2026, Radio France a réorganisé ses fréquences FM : franceinfo a gagné des fréquences, France Musique en a perdu dans une partie du pays, et Mouv' a quitté la FM le 31 août. Ces radios restent diffusées en DAB+, la radio numérique terrestre, mais encore faut-il qu'un émetteur DAB+ vous atteigne, et cela dépend de votre quartier, des immeubles qui vous entourent et de votre étage.
+      <span class="sub">Indiquez votre adresse et votre étage : l'outil estime vos chances de capter le DAB+ et la FM à partir du relief, des bâtiments et des émetteurs déclarés.</span></p>
+  </header>
+
+  <form class="form" id="form" autocomplete="off">
+    <div class="field addr">
+      <label class="lbl" for="q">Votre adresse</label>
+      <input id="q" type="search" placeholder="Ex. 2 rue de l'Hôtel de Ville, Nantes" role="combobox" aria-expanded="false" aria-controls="sugg" aria-autocomplete="list" required>
+      <ul id="sugg" class="sugg" role="listbox" hidden></ul>
+    </div>
+    <div class="field">
+      <label class="lbl" for="floor">Étage (0 = RDC)</label>
+      <div class="floor">
+        <button type="button" id="fminus" aria-label="Étage inférieur">−</button>
+        <input id="floor" type="number" min="0" max="60" step="1" value="0" inputmode="numeric">
+        <button type="button" id="fplus" aria-label="Étage supérieur">+</button>
+      </div>
+    </div>
+    <button class="go" id="go" type="submit">Vérifier</button>
+    <div class="status" id="status" aria-live="polite"></div>
+  </form>
+
+  <section id="results" hidden>
+    <div style="display:flex;flex-direction:column;gap:22px">
+      <article class="diag" id="diag" aria-live="polite"></article>
+
+      <div class="mapcard">
+        <div id="map" role="application" aria-label="Carte en 3D des bâtiments autour de l'adresse et des directions des émetteurs"></div>
+        <p id="filenote" hidden style="position:absolute;inset:0;display:grid;place-items:center;padding:24px;text-align:center;color:var(--muted);margin:0">La carte 3D s'affiche quand la page est publiée sur un site web. Ouverte directement depuis votre ordinateur, le navigateur bloque le moteur de carte ; le diagnostic, lui, reste valable.</p>
+        <div class="mapbar" role="group" aria-label="Vue de la carte">
+          <button type="button" id="v-local" aria-pressed="true">Mon quartier en 3D</button>
+          <button type="button" id="v-all" aria-pressed="false">Les émetteurs</button>
+        </div>
+        <div class="maplegend">
+          <div class="row"><span class="ln" style="background:var(--ok)"></span>Trajet dégagé</div>
+          <div class="row"><span class="ln" style="background:var(--mid)"></span>Peu gêné</div>
+          <div class="row"><span class="ln" style="background:var(--hi)"></span>Gêné</div>
+          <div class="row"><span class="ln" style="background:var(--vhi)"></span>Très gêné</div>
+          <div class="row"><span class="dot" style="background:var(--dab)"></span>Émetteur avec DAB+</div>
+          <div class="row"><span class="dot" style="background:var(--fm)"></span>Émetteur FM seul</div>
+        </div>
+      </div>
+
+      <details class="tech" id="tech">
+        <summary>Voir le détail technique</summary>
+        <div class="inner">
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>Site d'émission</th><th style="text-align:right">Distance</th><th>DAB+</th><th>FM</th></tr></thead>
+              <tbody id="txrows"></tbody>
+            </table>
+          </div>
+          <p class="sub" style="font-size:.86rem">Atténuation en plus de la simple distance, en dB : relief (RGE ALTI) + bâtiments à moins de 350 m (BD TOPO), modèle de diffraction en lame de couteau (UIT-R P.526). La perte due aux bâtiments est plafonnée à 20 dB pour tenir compte des réflexions sur les façades. 10 dB divisent la puissance reçue par 10.</p>
+          <div class="profiles" id="profiles"></div>
+          <div class="method">
+            <div><b>Ce que l'outil ne sait pas</b>
+              <ul>
+                <li>La puissance de chaque émetteur et la liste des radios qu'il diffuse : l'ANFR ne les publie pas.</li>
+                <li>Les réflexions sur les façades, qui ramènent souvent du signal dans les rues étroites.</li>
+                <li>Les murs de votre immeuble, le côté où donnent vos fenêtres, la végétation.</li>
+              </ul>
+            </div>
+            <div><b>Données et hypothèses</b>
+              <ul>
+                <li>Adresse, relief RGE ALTI, bâtiments BD TOPO : Géoplateforme IGN, interrogée en direct. Carte : Carte facile.</li>
+                <li>Émetteurs : ANFR, export du 30 septembre 2026 ; les supports à moins de 300 m sont regroupés.</li>
+                <li>Écoute à 1,2 m du plancher, 3 m par niveau ; courbure terrestre k = 4/3 ; DAB+ à 1,5 m de longueur d'onde, FM à 3 m.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <footer>
+    Estimation indicative, pas une mesure. Pour la liste exacte des radios DAB+ de votre zone, consultez <a href="https://www.arcom.fr/" target="_blank" rel="noopener">Ma Radio DAB+ (Arcom)</a> ; pour les fréquences de Radio France, le <a href="https://www.radiofrance.com/" target="_blank" rel="noopener">moteur de recherche de Radio France</a>.
+    Sources : <a href="https://geoservices.ign.fr/" target="_blank" rel="noopener">IGN Géoplateforme</a> · <a href="https://www.data.gouv.fr/datasets/donnees-sur-les-installations-radioelectriques-de-plus-de-5-watts-1" target="_blank" rel="noopener">ANFR, installations radioélectriques &gt; 5 W</a> · <a href="https://fab-geocommuns.github.io/carte-facile-site/" target="_blank" rel="noopener">Carte facile</a>.
+  </footer>
+</div>
+
+<script>/*TX*/</script>
+<script type="module">
+import * as maplibregl from "maplibre-gl";
+import { mapStyles, hideLayer } from "carte-facile";
+// Le worker de MapLibre vient d'un CDN : on le lance via une petite URL blob qui l'importe,
+// pour qu'il fonctionne quel que soit le domaine où la page est hébergée.
+try {
+  maplibregl.setWorkerUrl(URL.createObjectURL(new Blob(['import "https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl-worker.mjs";'], {type: 'text/javascript'})));
+} catch (e) { console.warn('Worker MapLibre : URL par défaut', e); }
+
+const GPF = "https://data.geopf.fr";
+const FLOOR_H = 3.0, EAR = 1.2, RE = 6371000 * 4 / 3, BUILD_R = 350, OWN_R = 5, BUILD_CAP = 20;
+const LAM = {fm: 3.0, dab: 1.5};
+const TX = window.TX.map(r => ({lat:r[0], lon:r[1], insee:r[2], com:r[3], lieu:r[4], fm:r[5], dab:r[6], hant:r[7], ops:r[8]}));
+
+const $ = id => document.getElementById(id);
+const esc = t => String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt1 = x => (Math.round(x * 10) / 10).toFixed(1).replace('.', ',');
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+let C = {};
+const readC = () => { C = {ink:css('--ink'), panel:css('--panel'), muted:css('--muted'), lo:css('--bld-lo'), hi:css('--bld-hi'), own:css('--own'), ok:css('--ok'), mid:css('--mid'), hiC:css('--hi'), vhi:css('--vhi'), fm:css('--fm'), dab:css('--dab'), terrain:css('--terrain'), sky:css('--sky')}; };
+readC();
+const cls = l => l < 6 ? ['Dégagé','ok'] : l < 15 ? ['Modéré','mid'] : l < 25 ? ['Fort','hiC'] : ['Très fort','vhi'];
+const DIR = ['le nord','le nord-est','l\'est','le sud-est','le sud','le sud-ouest','l\'ouest','le nord-ouest'];
+const cardinal = a => ['N','NE','E','SE','S','SO','O','NO'][Math.round(a / 45) % 8];
+const dirWords = a => DIR[Math.round(a / 45) % 8];
+const floorLabel = f => f === 0 ? 'rez-de-chaussée' : f === 1 ? '1ᵉʳ étage' : f + 'ᵉ étage';
+function titleCase(s){ return s.toLowerCase().replace(/(^|[\s'’(-])(\p{L})/gu, (m, a, b) => a + b.toUpperCase()); }
+function mix(a, b, t){ const p = x => x.startsWith('#') ? [1,3,5].map(i => parseInt(x.slice(i, i + 2), 16)) : x.match(/\d+/g).map(Number); const A = p(a), B = p(b); t = Math.max(0, Math.min(1, t)); return 'rgb(' + A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(',') + ')'; }
+function hav(a, b, c, d){ const r = Math.PI / 180, x = Math.sin((c - a) * r / 2), y = Math.sin((d - b) * r / 2); return 12742000 * Math.asin(Math.sqrt(x * x + Math.cos(a * r) * Math.cos(c * r) * y * y)); }
+function bearing(a, b, c, d){ const r = Math.PI / 180; const y = Math.sin((d - b) * r) * Math.cos(c * r); const x = Math.cos(a * r) * Math.sin(c * r) - Math.sin(a * r) * Math.cos(c * r) * Math.cos((d - b) * r); return (Math.atan2(y, x) / r + 360) % 360; }
+const J = v => v <= -0.78 ? 0 : 6.9 + 20 * Math.log10(Math.sqrt((v - 0.1) ** 2 + 1) + v - 0.1);
+
+async function getJSON(url, tries = 3){
+  let last;
+  for (let i = 0; i < tries; i++){
+    try { const r = await fetch(url); if (!r.ok) throw new Error('HTTP ' + r.status); return await r.json(); }
+    catch (e) { last = e; await new Promise(res => setTimeout(res, 600 * (i + 1))); }
+  }
+  throw last;
+}
+
+/* ---------- Saisie ---------- */
+const q = $('q'), sugg = $('sugg');
+let hits = [], sel = -1, picked = null, seq = 0, timer = null;
+q.addEventListener('input', () => {
+  picked = null; clearTimeout(timer);
+  const v = q.value.trim();
+  if (v.length < 3){ hits = []; renderSugg(); return; }
+  timer = setTimeout(async () => {
+    const my = ++seq;
+    try {
+      const d = await getJSON(GPF + '/geocodage/completion?type=StreetAddress,PositionOfInterest&maximumResponses=7&text=' + encodeURIComponent(v), 1);
+      if (my !== seq) return;
+      hits = (d.results || []).map(r => ({label:r.fulltext, lon:r.x, lat:r.y, kind:r.kind}));
+      sel = hits.length ? 0 : -1; renderSugg();
+    } catch (e) { /* la frappe suivante relancera la recherche */ }
+  }, 220);
+});
+const kindLabel = k => ({housenumber:'adresse', street:'voie', municipality:'commune', city:'commune', locality:'lieu-dit'}[k] || 'lieu');
+function renderSugg(){
+  if (!hits.length){ sugg.hidden = true; q.setAttribute('aria-expanded', 'false'); return; }
+  sugg.innerHTML = hits.map((h, i) => '<li role="option" id="o' + i + '" aria-selected="' + (i === sel) + '" data-i="' + i + '"><span>' + esc(h.label) + '</span><small>' + esc(kindLabel(h.kind)) + '</small></li>').join('');
+  sugg.hidden = false; q.setAttribute('aria-expanded', 'true');
+}
+q.addEventListener('keydown', e => {
+  if (sugg.hidden) return;
+  if (e.key === 'ArrowDown'){ e.preventDefault(); sel = Math.min(sel + 1, hits.length - 1); renderSugg(); }
+  else if (e.key === 'ArrowUp'){ e.preventDefault(); sel = Math.max(sel - 1, 0); renderSugg(); }
+  else if (e.key === 'Enter' && hits[sel]){ e.preventDefault(); pick(hits[sel], true); }
+  else if (e.key === 'Escape'){ sugg.hidden = true; }
+});
+sugg.addEventListener('mousedown', e => { const li = e.target.closest('li'); if (li){ e.preventDefault(); pick(hits[+li.dataset.i], true); } });
+q.addEventListener('blur', () => setTimeout(() => { sugg.hidden = true; q.setAttribute('aria-expanded', 'false'); }, 150));
+function pick(h, run){ picked = h; q.value = h.label; sugg.hidden = true; q.setAttribute('aria-expanded', 'false'); if (run) analyse(); }
+
+const fl = $('floor');
+const getFloor = () => Math.max(0, Math.min(60, parseInt(fl.value, 10) || 0));
+$('fminus').onclick = () => { fl.value = Math.max(0, getFloor() - 1); onFloor(); };
+$('fplus').onclick = () => { fl.value = Math.min(60, getFloor() + 1); onFloor(); };
+fl.addEventListener('change', onFloor);
+function onFloor(){ if (state){ compute(); render(); updateURL(); } }
+
+$('form').addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!picked){
+    const v = q.value.trim(); if (v.length < 3) return;
+    try {
+      const d = await getJSON(GPF + '/geocodage/completion?type=StreetAddress,PositionOfInterest&maximumResponses=1&text=' + encodeURIComponent(v));
+      const r = (d.results || [])[0];
+      if (!r){ setStatus([['err', 'Adresse introuvable. Choisissez une proposition dans la liste.']]); return; }
+      picked = {label:r.fulltext, lon:r.x, lat:r.y, kind:r.kind}; q.value = r.fulltext;
+    } catch (err) { setStatus([['err', 'Le service d\'adresses de l\'IGN ne répond pas. Réessayez dans un instant.']]); return; }
+  }
+  analyse();
+});
+function setStatus(items){ $('status').innerHTML = items.map(([c, t]) => '<span class="' + c + '">' + esc(t) + '</span>').join(''); }
+
+/* ---------- Choix des sites ---------- */
+function chooseSites(lat, lon){
+  const near = TX.filter(t => Math.abs(t.lat - lat) < 0.6 && Math.abs(t.lon - lon) < 0.9).sort((a, b) => (b.fm + b.dab) - (a.fm + a.dab));
+  const groups = [];
+  for (const t of near){
+    const g = groups.find(g => hav(g.lat, g.lon, t.lat, t.lon) < 300);
+    if (g){ g.fm += t.fm; g.dab += t.dab; g.hant = Math.max(g.hant, t.hant); g.ops = [...new Set((g.ops + ', ' + t.ops).split(', ').filter(Boolean))].sort().join(', '); }
+    else groups.push(Object.assign({}, t));
+  }
+  const cand = [];
+  for (const t of groups){
+    const d = hav(lat, lon, t.lat, t.lon);
+    if (d > 50000 || d < 50) continue;
+    const km = d / 1000, h = Math.sqrt(Math.max(t.hant, 5)), den = Math.pow(km + 2, 2);
+    cand.push(Object.assign(t, {d, az: bearing(lat, lon, t.lat, t.lon), score: (t.fm + t.dab) * h / den, dscore: t.dab * h / den}));
+  }
+  const top = [...cand].sort((a, b) => b.score - a.score).slice(0, 4);
+  const dab = cand.filter(t => t.dab > 0).sort((a, b) => b.dscore - a.dscore).slice(0, 3);
+  return [...new Set([...top, ...dab])].sort((a, b) => a.d - b.d);
+}
+
+/* ---------- Analyse ---------- */
+let state = null, run = 0;
+async function analyse(){
+  const me = ++run, h = picked; if (!h) return;
+  $('go').disabled = true;
+  const steps = [['run', 'Émetteurs proches'], ['', 'Relief'], ['', 'Bâtiments']];
+  setStatus(steps);
+  try {
+    const sites = chooseSites(h.lat, h.lon);
+    if (!sites.length){ setStatus([['err', 'Aucun émetteur FM ou DAB+ déclaré à moins de 50 km de cette adresse.']]); return; }
+    steps[0] = ['done', sites.length + ' émetteurs proches']; steps[1][0] = 'run'; steps[2][0] = 'run'; setStatus(steps);
+    const profP = Promise.all(sites.map(t => {
+      const n = Math.max(60, Math.min(200, Math.round(t.d / 40)));
+      return getJSON(GPF + '/altimetrie/1.0/calcul/alti/rest/elevationLine.json?resource=ign_rge_alti_wld&profile_mode=simple&indent=false&sampling=' + n + '&lon=' + h.lon + '|' + t.lon + '&lat=' + h.lat + '|' + t.lat)
+        .then(d => { t.profile = d.elevations.map((e, i) => [t.d * i / (d.elevations.length - 1), e.z]); });
+    })).then(() => { steps[1][0] = 'done'; setStatus(steps); });
+    const props = 'hauteur,nombre_d_etages,altitude_minimale_sol,altitude_maximale_toit,geometrie';
+    const batP = getJSON(GPF + '/wfs?service=WFS&version=2.0.0&request=GetFeature&typeNames=BDTOPO_V3:batiment&outputFormat=application/json&count=6000&propertyName=' + props
+      + '&cql_filter=' + encodeURIComponent('DWITHIN(geometrie,SRID=4326;POINT(' + h.lon + ' ' + h.lat + '),' + BUILD_R + ',meters)'))
+      .then(d => { steps[2] = ['done', (d.features || []).length + ' bâtiments']; setStatus(steps); return d.features || []; })
+      .catch(() => { steps[2] = ['err', 'Bâtiments indisponibles : relief seul']; setStatus(steps); return []; });
+    const [, feats] = await Promise.all([profP, batP]);
+    if (me !== run) return;
+    const g0 = sites[0].profile[0][1];
+    state = {addr: h, g0, sites, bati: prepBati(feats, h)};
+    sites.forEach(t => { t.hits = rayHits(t.az, state.bati); t.zg = t.profile[t.profile.length - 1][1]; t.zant = t.zg + t.hant; });
+    compute();
+    $('results').hidden = false;
+    render();
+    updateURL();
+    try { await drawMap(); } catch (e) { /* page ouverte en local : diagnostic sans carte */ }
+    $('diag').scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start'});
+  } catch (e) {
+    setStatus([['err', 'Un service de l\'IGN n\'a pas répondu (' + (e.message || 'erreur réseau') + '). Réessayez dans un instant.']]);
+  } finally { $('go').disabled = false; }
+}
+
+function prepBati(feats, h){
+  const mx = 111320 * Math.cos(h.lat * Math.PI / 180), my = 110540;
+  const out = [];
+  for (const f of feats){
+    const p = f.properties || {}, g = f.geometry; if (!g) continue;
+    let top = p.altitude_maximale_toit;
+    if (top == null && p.hauteur != null && p.altitude_minimale_sol != null) top = p.altitude_minimale_sol + p.hauteur;
+    if (top == null) continue;
+    const polys = g.type === 'MultiPolygon' ? g.coordinates : [g.coordinates];
+    const rings = polys.map(poly => poly[0].map(c => [(c[0] - h.lon) * mx, (c[1] - h.lat) * my]));
+    const dmin = Math.min(...rings.flat().map(([x, y]) => Math.hypot(x, y)));
+    out.push({top, h:p.hauteur, et:p.nombre_d_etages, rings, polys: polys.map(poly => [poly[0].map(c => [c[0], c[1]])]), own: dmin <= OWN_R});
+  }
+  return out;
+}
+function rayHits(az, bati){
+  const ux = Math.sin(az * Math.PI / 180), uy = Math.cos(az * Math.PI / 180), res = [];
+  bati.forEach(b => {
+    if (b.own) return;
+    let t1 = Infinity, t2 = -Infinity;
+    for (const ring of b.rings) for (let i = 0; i + 1 < ring.length; i++){
+      const [x1, y1] = ring[i], [x2, y2] = ring[i + 1], ex = x2 - x1, ey = y2 - y1, den = ux * ey - uy * ex;
+      if (Math.abs(den) < 1e-9) continue;
+      const t = (x1 * ey - y1 * ex) / den, s = (x1 * uy - y1 * ux) / den;
+      if (s >= 0 && s <= 1 && t > 0 && t <= BUILD_R){ t1 = Math.min(t1, t); t2 = Math.max(t2, t); }
+    }
+    if (t1 < Infinity) res.push({d1: t1, d2: Math.max(t2, t1 + 2), top: b.top});
+  });
+  return res.sort((a, b) => a.d1 - b.d1);
+}
+function knife(zo, t, band){
+  const D = t.d, zt = t.zant, lam = LAM[band];
+  let vt = -9, wt = null;
+  for (const [d1, z] of t.profile){
+    const d2 = D - d1; if (d1 < BUILD_R || d2 < 50) continue;
+    const h = z + d1 * d2 / (2 * RE) - (zo + (zt - zo) * d1 / D);
+    const v = h * Math.sqrt(2 * D / (lam * d1 * d2));
+    if (v > vt){ vt = v; wt = [d1, h]; }
+  }
+  let vb = -9, wb = null;
+  for (const b of t.hits) for (const d1 of [b.d1, b.d2]){
+    const d2 = D - d1, h = b.top - (zo + (zt - zo) * d1 / D);
+    const v = h * Math.sqrt(2 * D / (lam * d1 * d2));
+    if (v > vb){ vb = v; wb = [d1, h, b.top]; }
+  }
+  // Les réflexions sur les façades ramènent du signal : la perte due au bâti est plafonnée à 20 dB.
+  const lb = Math.min(BUILD_CAP, J(vb));
+  return {lt: J(vt), lb, loss: J(vt) + lb, wt, wb};
+}
+function compute(){
+  const f = getFloor();
+  state.floor = f;
+  state.zo = ff => state.g0 + ff * FLOOR_H + EAR;
+  state.sites.forEach(t => {
+    t.r = {};
+    [0, f, Math.max(0, f - 3), f + 3].forEach(ff => {
+      const zo = state.zo(ff);
+      t.r[ff] = {zo, fm: knife(zo, t, 'fm'), dab: knife(zo, t, 'dab'), ang: Math.atan2(t.zant - zo, t.d) * 180 / Math.PI};
+    });
+  });
+}
+
+/* ---------- Diagnostic en clair ---------- */
+// Indice de difficulté : masquage + éloignement (20 dB par décade au-delà de 5 km).
+const effort = (t, band, ff) => t.r[ff][band].loss + 20 * Math.log10(Math.max(t.d / 1000, 1) / 5);
+// Seuils DAB+ ; la FM, plus tolérante et souvent plus puissante, a ses seuils décalés de 8 dB.
+const LEVELS = [
+  {max: 16, tone: 'ok',  dab: ['Oui,', 'très probablement'],  fm: 'bonne'},
+  {max: 28, tone: 'mid', dab: ['Oui,', 'probablement'],       fm: 'correcte'},
+  {max: 38, tone: 'hi',  dab: ['C\'est', 'incertain'],        fm: 'fragile'},
+  {max: 1e9, tone: 'vhi', dab: ['Difficilement', ''],         fm: 'difficile'}
+];
+const FM_SHIFT = 8;
+const level = (x, band) => LEVELS.find(l => x - (band === 'fm' ? FM_SHIFT : 0) <= l.max);
+const ICONS = {
+  ok: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  mid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 17a10 10 0 0 1 14 0"/><path d="M8 13.5a6 6 0 0 1 8 0"/><circle cx="12" cy="18.5" r="1.4" fill="currentColor"/></svg>',
+  hi: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M8 13.5a6 6 0 0 1 8 0"/><circle cx="12" cy="18.5" r="1.4" fill="currentColor"/><path d="M12 4v4"/></svg>',
+  vhi: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>'
+};
+function renderDiag(){
+  const f = state.floor, S = state.sites, addr = state.addr.label;
+  const dabS = S.filter(t => t.dab > 0);
+  const bestOf = (arr, band, ff) => arr.reduce((a, b) => effort(b, band, ff) < effort(a, band, ff) ? b : a);
+  const fmS = S.filter(t => t.fm > 0);
+  const bestFm = fmS.length ? bestOf(fmS, 'fm', f) : null;
+  const fmLv = bestFm ? level(effort(bestFm, 'fm', f), 'fm') : null;
+  let tone, answer, why, tips = [];
+  if (!dabS.length){
+    tone = 'vhi'; answer = '<em>Probablement pas</em> en DAB+';
+    why = 'Aucun émetteur DAB+ n\'est déclaré à moins de 50 km de chez vous. Le DAB+ est encore en cours de déploiement dans certaines zones.';
+    tips.push('Écoutez les antennes de Radio France sur internet (site ou application) en attendant l\'arrivée du DAB+.');
+    if (bestFm) tips.push('En FM, la réception s\'annonce ' + fmLv.fm + ' : vérifiez les fréquences disponibles dans votre commune.');
+  } else {
+    const b = bestOf(dabS, 'dab', f), x = effort(b, 'dab', f), lv = level(x), r = b.r[f].dab;
+    tone = lv.tone; answer = lv.dab[0] + (lv.dab[1] ? ' <em>' + lv.dab[1] + '</em>' : '');
+    const km = fmt1(b.d / 1000).replace(',0', '');
+    const cause = r.lt > r.lb + 3 ? 'le relief' : r.lb > 3 ? 'les immeubles qui vous entourent' : null;
+    const sentence = {
+      ok: 'L\'émetteur DAB+ le plus favorable, à ' + km + ' km vers ' + dirWords(b.az) + ', vous atteint dans de bonnes conditions. Un poste DAB+ ordinaire devrait suffire.',
+      mid: 'Un émetteur DAB+ se trouve à ' + km + ' km vers ' + dirWords(b.az) + '. ' + (cause ? 'Le signal est affaibli par ' + cause + ', mais il' : 'Le signal') + ' devrait rester suffisant avec un poste bien placé.',
+      hi: 'L\'émetteur DAB+ le plus proche utilisable est à ' + km + ' km vers ' + dirWords(b.az) + (cause ? ', et ' + cause + ' affaiblissent nettement le signal' : '') + '. À l\'intérieur, la réception risque d\'être intermittente.',
+      vhi: 'Le DAB+ vous parvient très affaibli' + (cause ? ', surtout à cause de ' + cause : '') + ' : l\'émetteur le plus favorable est à ' + km + ' km vers ' + dirWords(b.az) + '. Un poste d\'intérieur risque de ne rien capter.'
+    }[tone];
+    why = sentence;
+    if (tone !== 'ok') tips.push('Placez le poste près d\'une fenêtre orientée vers ' + dirWords(b.az) + ', antenne déployée.');
+    const up = effort(b, 'dab', f + 3), down = f > 0 ? effort(b, 'dab', Math.max(0, f - 3)) : null;
+    if (tone !== 'ok' && up < x - 4) tips.push('Trois étages plus haut, le signal serait nettement meilleur' + (level(up).tone !== tone ? ' (' + (level(up).dab[0] + ' ' + level(up).dab[1]).trim().toLowerCase().replace(/,$/, '') + ')' : '') + ' : les immeubles voisins vous masquent moins.');
+    else if (down != null && down > x + 4) tips.push('Plus bas dans l\'immeuble, la réception serait plus difficile.');
+    if (tone === 'hi' || tone === 'vhi') tips.push('Une antenne extérieure ou sur le toit change souvent tout ; sinon, l\'écoute par internet reste possible.');
+    if (tone === 'ok') tips.push('Lancez une recherche automatique des stations sur votre poste DAB+ pour mémoriser les radios disponibles.');
+    tips.push('Vérifiez sur Ma Radio DAB+ (Arcom) quelles radios sont diffusées dans votre zone : l\'outil ne sait pas lesquelles passent par cet émetteur.');
+  }
+  const fmLine = bestFm
+    ? '<span class="lbl">Et en FM ?</span><span class="pill"><i style="background:var(--' + (fmLv.tone === 'hiC' ? 'hi' : fmLv.tone) + ')"></i>Réception ' + fmLv.fm + '</span><span class="sub">Émetteur le plus favorable à ' + fmt1(bestFm.d / 1000) + ' km vers ' + dirWords(bestFm.az) + '. Depuis juillet, certaines antennes de Radio France (France Musique, Mouv\') ne sont plus en FM partout.</span>'
+    : '<span class="lbl">Et en FM ?</span><span class="sub">Aucun émetteur FM déclaré à proximité.</span>';
+  const d = $('diag');
+  d.style.setProperty('--tone', 'var(--' + (tone === 'hiC' ? 'hi' : tone) + ')');
+  d.style.setProperty('--tone-soft', 'var(--' + (tone === 'hiC' ? 'hi' : tone) + '-soft)');
+  d.innerHTML = '<div class="top"><div class="dial" style="color:var(--' + tone + ')">' + ICONS[tone] + '</div>'
+    + '<div class="where">' + esc(addr) + ' · ' + floorLabel(f) + ' · DAB+</div>'
+    + '<div class="answer">' + answer + '</div></div>'
+    + '<div class="body"><p class="why">' + why + '</p><ul class="tips">' + tips.map(t => '<li><span>' + esc(t) + '</span></li>').join('') + '</ul>'
+    + '<div class="fmline">' + fmLine + '</div>'
+    + '<p class="fine">Estimation à partir du relief, des bâtiments et des émetteurs déclarés, pas une mesure. Changez l\'étage ci-dessus pour comparer.</p></div>';
+}
+
+/* ---------- Carte (Carte facile + MapLibre) ---------- */
+let map = null, popup = null, view = 'local', focus = null;
+function mapReady(){
+  if (location.protocol === 'file:'){
+    $('filenote').hidden = false; document.querySelectorAll('.mapbar,.maplegend').forEach(el => el.hidden = true);
+    return Promise.reject(new Error('file'));
+  }
+  if (map) return map.loaded() ? Promise.resolve() : new Promise(res => map.once('load', res));
+  map = new maplibregl.Map({container: 'map', style: mapStyles.desaturated, maxZoom: 18.9, center: [state.addr.lon, state.addr.lat], zoom: 16, pitch: 55, attributionControl: {compact: true}});
+  map.addControl(new maplibregl.NavigationControl({visualizePitch: true}), 'top-right');
+  map.addControl(new maplibregl.ScaleControl(), 'bottom-right');
+  popup = new maplibregl.Popup({closeButton: false, closeOnClick: false, offset: 8});
+  $('v-local').onclick = () => setView('local');
+  $('v-all').onclick = () => setView('all');
+  return new Promise(res => map.once('load', () => {
+    try { hideLayer(map, 'buildings'); } catch (e) {}
+    map.addSource('bati', {type: 'geojson', data: empty()});
+    map.addSource('rays', {type: 'geojson', data: empty()});
+    map.addSource('tx', {type: 'geojson', data: empty()});
+    map.addSource('addr', {type: 'geojson', data: empty()});
+    map.addLayer({id: 'bati', type: 'fill-extrusion', source: 'bati', paint: {'fill-extrusion-height': ['get', 'hh'], 'fill-extrusion-base': 0, 'fill-extrusion-opacity': .88, 'fill-extrusion-color': ['get', 'col']}});
+    map.addLayer({id: 'rays-casing', type: 'line', source: 'rays', layout: {'line-cap': 'round'}, paint: {'line-color': C.panel, 'line-width': ['case', ['get', 'focus'], 9, 6.5]}});
+    map.addLayer({id: 'rays', type: 'line', source: 'rays', layout: {'line-cap': 'round'}, paint: {'line-color': ['get', 'col'], 'line-width': ['case', ['get', 'focus'], 6, 3.8]}});
+    map.addLayer({id: 'tx', type: 'circle', source: 'tx', paint: {'circle-radius': 8, 'circle-color': ['get', 'col'], 'circle-stroke-color': C.panel, 'circle-stroke-width': 2.5}});
+    map.addLayer({id: 'addr', type: 'circle', source: 'addr', paint: {'circle-radius': 8, 'circle-color': C.ink, 'circle-stroke-color': C.panel, 'circle-stroke-width': 3}});
+    for (const id of ['tx', 'rays', 'bati']){
+      map.on('mousemove', id, e => { map.getCanvas().style.cursor = 'pointer'; popup.setLngLat(e.lngLat).setHTML(e.features[0].properties.tip).addTo(map); });
+      map.on('mouseleave', id, () => { map.getCanvas().style.cursor = ''; popup.remove(); });
+    }
+    map.on('click', 'tx', e => openTech(+e.features[0].properties.i));
+    map.on('click', 'rays', e => openTech(+e.features[0].properties.i));
+    res();
+  }));
+}
+const empty = () => ({type: 'FeatureCollection', features: []});
+function rayTone(t){ const band = t.dab ? 'dab' : 'fm'; return level(effort(t, band, state.floor), band).tone; }
+const toneColor = tone => ({ok: C.ok, mid: C.mid, hi: C.hiC, vhi: C.vhi})[tone];
+async function drawMap(){
+  await mapReady();
+  const h = state.addr, g0 = state.g0, tops = state.bati.map(b => b.top);
+  const tmin = tops.length ? Math.min(...tops) : 0, tmax = tops.length ? Math.max(...tops) : 1;
+  state.tmin = tmin; state.tmax = tmax;
+  map.getSource('bati').setData({type: 'FeatureCollection', features: state.bati.map(b => ({type: 'Feature',
+    properties: {hh: Math.max(2, b.top - g0), col: b.own ? C.own : mix(C.lo, C.hi, (b.top - tmin) / ((tmax - tmin) || 1)), tip: (b.own ? '<b>Votre immeuble ou un mitoyen</b><br>' : '') + 'Toit à ' + fmt1(b.top) + ' m' + (b.et ? ' · ' + b.et + ' niveaux' : '')},
+    geometry: {type: 'MultiPolygon', coordinates: b.polys}}))});
+  map.getSource('addr').setData({type: 'FeatureCollection', features: [{type: 'Feature', properties: {}, geometry: {type: 'Point', coordinates: [h.lon, h.lat]}}]});
+  styleMap();
+  setView('local', true);
+}
+function styleMap(){
+  if (!map || !map.getSource('rays')) return;
+  const h = state.addr;
+  map.getSource('rays').setData({type: 'FeatureCollection', features: state.sites.map((t, i) => ({type: 'Feature',
+    properties: {i, focus: focus === i, col: toneColor(rayTone(t)), tip: '<b>' + esc(txName(t)) + '</b><br>' + fmt1(t.d / 1000) + ' km · ' + (t.dab ? 'DAB+ : ' + esc(level(effort(t, 'dab', state.floor)).dab.join(' ').trim().toLowerCase()) : 'FM seulement')},
+    geometry: {type: 'LineString', coordinates: [[h.lon, h.lat], [t.lon, t.lat]]}}))});
+  map.getSource('tx').setData({type: 'FeatureCollection', features: state.sites.map((t, i) => ({type: 'Feature',
+    properties: {i, col: t.dab ? C.dab : C.fm, tip: '<b>' + esc(txName(t)) + '</b><br>Antenne à ' + Math.round(t.zant) + ' m · ' + t.fm + ' FM, ' + t.dab + ' DAB+'},
+    geometry: {type: 'Point', coordinates: [t.lon, t.lat]}}))});
+}
+function restyleMapColors(){
+  if (!map || !map.getLayer('addr')) return;
+  map.setPaintProperty('rays-casing', 'line-color', C.panel);
+  map.setPaintProperty('tx', 'circle-stroke-color', C.panel);
+  map.setPaintProperty('addr', 'circle-color', C.ink);
+  map.setPaintProperty('addr', 'circle-stroke-color', C.panel);
+  drawMap();
+}
+function setView(v, instant){
+  view = v;
+  $('v-local').setAttribute('aria-pressed', v === 'local'); $('v-all').setAttribute('aria-pressed', v === 'all');
+  const h = state.addr, opt = {duration: instant || matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 900};
+  if (v === 'local'){
+    const ds = state.sites.filter(t => t.dab), b = ds.length ? ds.reduce((a, c) => effort(c, 'dab', state.floor) < effort(a, 'dab', state.floor) ? c : a) : state.sites[0];
+    map.easeTo(Object.assign({center: [h.lon, h.lat], zoom: 17, pitch: 58, bearing: (b.az + 180) % 360 - 180}, opt));
+  } else {
+    const pts = [[h.lon, h.lat], ...state.sites.map(t => [t.lon, t.lat])];
+    const w = Math.min(...pts.map(p => p[0])), e = Math.max(...pts.map(p => p[0])), s = Math.min(...pts.map(p => p[1])), n = Math.max(...pts.map(p => p[1]));
+    map.fitBounds([[w, s], [e, n]], Object.assign({padding: 60, pitch: 0, bearing: 0}, opt));
+  }
+}
+function openTech(i){
+  $('tech').open = true; focus = i; styleMap();
+  const el = $('prof' + i); if (el) el.scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start'});
+}
+
+/* ---------- Noms ---------- */
+function comName(t){
+  if (t.com) return t.com;
+  const c = t.insee, n = +c.slice(-2), ord = n === 1 ? '1er' : n + 'e';
+  if (/^751\d\d$/.test(c)) return 'Paris ' + ord;
+  if (/^6938\d$/.test(c)) return 'Lyon ' + (+c.slice(-1) === 1 ? '1er' : c.slice(-1) + 'e');
+  if (/^132\d\d$/.test(c)) return 'Marseille ' + ord;
+  return c;
+}
+const ABBR = {'R':'rue','Av':'avenue','Bd':'boulevard','Pl':'place','Rte':'route','Ch':'chemin','Che':'chemin','Imp':'impasse','All':'allée','Qu':'quai','Sq':'square'};
+function lieuName(s){ return titleCase(s).replace(/^(\d+)?[,\s]*(R|Av|Bd|Pl|Rte|Ch|Che|Imp|All|Qu|Sq)\.?\s+/, (m, num, w) => (num ? num + ' ' : '') + ABBR[w] + ' '); }
+const txName = t => comName(t) + (t.lieu ? ' · ' + lieuName(t.lieu) : '');
+
+/* ---------- Détail technique ---------- */
+function badge(l){ const [t, c] = cls(l); return '<span class="badge"><i style="background:var(--' + (c === 'hiC' ? 'hi' : c) + ')"></i>' + t + ' <span class="mono" style="font-weight:400">' + fmt1(l) + ' dB</span></span>'; }
+function render(){
+  readC();
+  renderDiag();
+  const f = state.floor, S = state.sites;
+  $('txrows').innerHTML = S.map((t, i) => { const r = t.r[f]; return '<tr class="tx" data-i="' + i + '" tabindex="0"><td><div class="txname">' + esc(txName(t)) + '</div><div class="txmeta">' + cardinal(t.az) + ' · antenne à ' + Math.round(t.zant) + ' m · ' + t.fm + ' FM, ' + t.dab + ' DAB+' + (t.ops ? ' · ' + esc(t.ops) : '') + '</div></td><td class="n">' + fmt1(t.d / 1000) + ' km</td><td>' + (t.dab ? badge(r.dab.loss) : '<span class="txmeta">pas de DAB+</span>') + '</td><td>' + (t.fm ? badge(r.fm.loss) : '<span class="txmeta">pas de FM</span>') + '</td></tr>'; }).join('');
+  document.querySelectorAll('tr.tx').forEach(tr => { const i = +tr.dataset.i; tr.onclick = () => openTech(i); tr.onkeydown = e => { if (e.key === 'Enter') openTech(i); }; tr.onmouseenter = () => { focus = i; styleMap(); }; tr.onmouseleave = () => { focus = null; styleMap(); }; });
+  $('profiles').innerHTML = S.map((t, i) => { const r = t.r[f]; return '<article class="prof" id="prof' + i + '"><div class="ph"><h3>' + esc(txName(t)) + '</h3><span class="mono sub">' + fmt1(t.d / 1000) + ' km · ' + cardinal(t.az) + ' (' + Math.round(t.az) + '°)</span></div>'
+    + '<div class="figs">' + (t.dab ? '<span>DAB+ <b>' + fmt1(r.dab.loss) + ' dB</b></span>' : '') + (t.fm ? '<span>FM <b>' + fmt1(r.fm.loss) + ' dB</b> (relief ' + fmt1(r.fm.lt) + ' + bâti ' + fmt1(r.fm.lb) + ')</span>' : '') + '<span>angle de visée <b>' + fmt1(r.ang) + '°</b></span></div>'
+    + '<div class="cols2"><div><span class="lbl">Les ' + BUILD_R + ' premiers mètres</span>' + nearSvg(t) + '</div><div><span class="lbl">Trajet complet</span>' + farSvg(t) + '</div></div>'
+    + '<p class="sub" style="font-size:.84rem">' + caption(r) + '</p></article>'; }).join('');
+  styleMap();
+}
+function caption(r){
+  const parts = [], w = r.fm.wb;
+  if (w && r.fm.lb > 0.5) parts.push('Obstacle bâti principal : un toit à ' + fmt1(w[2]) + ' m, à ' + Math.round(w[0]) + ' m de l\'adresse, ' + fmt1(Math.max(0, w[1])) + ' m au-dessus de la ligne de visée.');
+  else parts.push('Aucun bâtiment voisin ne coupe la ligne de visée.');
+  if (r.fm.wt && r.fm.lt > 0.5) parts.push('Relief : obstacle à ' + fmt1(r.fm.wt[0] / 1000) + ' km, ' + (r.fm.wt[1] > 0 ? fmt1(r.fm.wt[1]) + ' m au-dessus de la ligne' : 'qui frôle la ligne') + '.');
+  return parts.join(' ');
+}
+function nearSvg(t){
+  const W = 300, H = 180, ml = 30, mr = 8, mt = 10, mb = 22, X = BUILD_R, f = state.floor, g = state.g0;
+  const sp = t.hits.filter(b => b.d1 <= X), tmin = state.tmin ?? g, tmax = state.tmax ?? g + 30;
+  const zHi = state.zo(f + 3), zHiEnd = zHi + (t.zant - zHi) * X / t.d;
+  const ymax = Math.max(g + 20, ...sp.map(s => s.top), zHiEnd, zHi) + 3, ymin = g - 3;
+  const sx = d => ml + d / X * (W - ml - mr), sy = z => mt + (ymax - z) / (ymax - ymin) * (H - mt - mb);
+  let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Coupe des premiers mètres vers ' + esc(txName(t)) + '">';
+  s += '<rect x="' + ml + '" y="' + mt + '" width="' + (W - ml - mr) + '" height="' + (H - mt - mb) + '" fill="' + C.sky + '"/>';
+  sp.forEach(b => { const x1 = sx(b.d1), x2 = sx(Math.min(X, b.d2)); s += '<rect x="' + x1.toFixed(1) + '" y="' + sy(b.top).toFixed(1) + '" width="' + Math.max(1.5, x2 - x1).toFixed(1) + '" height="' + Math.max(0, sy(g) - sy(b.top)).toFixed(1) + '" fill="' + mix(C.lo, C.hi, (b.top - tmin) / ((tmax - tmin) || 1)) + '" stroke="' + C.panel + '" stroke-width=".5"/>'; });
+  s += '<line x1="' + ml + '" x2="' + (W - mr) + '" y1="' + sy(g) + '" y2="' + sy(g) + '" stroke="' + C.terrain + '" stroke-width="3"/>';
+  const band = t.dab ? 'dab' : 'fm';
+  [...new Set([0, Math.max(0, f - 3), f, f + 3])].forEach(ff => { const r = t.r[ff], z0 = r.zo, z1 = z0 + (t.zant - z0) * X / t.d, on = ff === f;
+    s += '<line x1="' + sx(0) + '" y1="' + sy(z0).toFixed(1) + '" x2="' + sx(X) + '" y2="' + sy(z1).toFixed(1) + '" stroke="' + (on ? C[cls(r[band].loss)[1]] : C.muted) + '" stroke-width="' + (on ? 2.2 : 1) + '"' + (on ? '' : ' stroke-dasharray="3 3"') + '/>';
+    s += '<circle cx="' + sx(0) + '" cy="' + sy(z0).toFixed(1) + '" r="' + (on ? 3.5 : 2.5) + '" fill="' + (on ? C.ink : C.muted) + '"/>';
+    if (on) s += '<text x="' + (sx(0) + 5) + '" y="' + (sy(z0) - 5).toFixed(1) + '" style="fill:' + C.ink + '">' + (ff === 0 ? 'RDC' : ff + 'ᵉ') + '</text>'; });
+  const st = (ymax - ymin) > 60 ? 20 : 10;
+  for (let z = Math.ceil(ymin / st) * st; z <= ymax; z += st) s += '<text x="' + (ml - 4) + '" y="' + (sy(z) + 3) + '" text-anchor="end">' + z + '</text>';
+  [0, 100, 200, 300].forEach(d => s += '<text x="' + sx(d) + '" y="' + (H - 6) + '" text-anchor="middle">' + d + ' m</text>');
+  return s + '</svg>';
+}
+function farSvg(t){
+  const W = 300, H = 180, ml = 34, mr = 8, mt = 10, mb = 22, D = t.d, r = t.r[state.floor], z0 = r.zo, z1 = t.zant, band = t.dab ? 'dab' : 'fm';
+  const pts = t.profile.map(([d, z]) => [d, z + d * (D - d) / (2 * RE)]);
+  const ymax = Math.max(z1, ...pts.map(p => p[1])) + 15, ymin = Math.min(...pts.map(p => p[1])) - 8;
+  const sx = d => ml + d / D * (W - ml - mr), sy = z => mt + (ymax - z) / (ymax - ymin) * (H - mt - mb);
+  let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Profil du relief vers ' + esc(txName(t)) + '">';
+  s += '<rect x="' + ml + '" y="' + mt + '" width="' + (W - ml - mr) + '" height="' + (H - mt - mb) + '" fill="' + C.sky + '"/>';
+  const up = [], dn = []; for (let i = 0; i <= 40; i++){ const d = D * i / 40, z = z0 + (z1 - z0) * d / D, rr = Math.sqrt(Math.max(0, LAM[band] * d * (D - d) / D)); up.push(sx(d).toFixed(1) + ',' + sy(z + rr).toFixed(1)); dn.unshift(sx(d).toFixed(1) + ',' + sy(z - rr).toFixed(1)); }
+  s += '<polygon points="' + up.concat(dn).join(' ') + '" fill="' + C[band] + '" fill-opacity=".14"/>';
+  s += '<polygon points="' + sx(0) + ',' + sy(ymin) + ' ' + pts.map(([d, z]) => sx(d).toFixed(1) + ',' + sy(z).toFixed(1)).join(' ') + ' ' + sx(D) + ',' + sy(ymin) + '" fill="' + C.terrain + '"/>';
+  s += '<line x1="' + sx(0) + '" y1="' + sy(z0).toFixed(1) + '" x2="' + sx(D) + '" y2="' + sy(z1).toFixed(1) + '" stroke="' + C[cls(r[band].loss)[1]] + '" stroke-width="2"/>';
+  s += '<line x1="' + sx(D) + '" y1="' + sy(pts[pts.length - 1][1]).toFixed(1) + '" x2="' + sx(D) + '" y2="' + sy(z1).toFixed(1) + '" stroke="' + C.ink + '" stroke-width="2"/>';
+  s += '<circle cx="' + sx(D) + '" cy="' + sy(z1).toFixed(1) + '" r="3.5" fill="' + C.ink + '"/><circle cx="' + sx(0) + '" cy="' + sy(z0).toFixed(1) + '" r="3.5" fill="' + C.ink + '"/>';
+  const span = ymax - ymin, st = span > 600 ? 200 : span > 250 ? 100 : span > 120 ? 50 : 20;
+  for (let z = Math.ceil(ymin / st) * st; z <= ymax; z += st) s += '<text x="' + (ml - 4) + '" y="' + (sy(z) + 3) + '" text-anchor="end">' + z + '</text>';
+  const km = D / 1000, ks = km > 30 ? 10 : km > 12 ? 5 : km > 6 ? 2 : 1;
+  for (let d = 0; d <= km + 1e-6; d += ks) s += '<text x="' + sx(d * 1000) + '" y="' + (H - 6) + '" text-anchor="middle">' + d + ' km</text>';
+  s += '<text x="' + (sx(D) - 4) + '" y="' + (sy(z1) - 6).toFixed(1) + '" text-anchor="end" style="fill:' + C.ink + '">antenne ' + Math.round(z1) + ' m</text>';
+  return s + '</svg>';
+}
+
+/* ---------- Lien partageable, thème, démarrage ---------- */
+function updateURL(){
+  try { const u = new URL(location.href); u.searchParams.set('adresse', state.addr.label); u.searchParams.set('etage', state.floor); history.replaceState(null, '', u); } catch (e) {}
+}
+const re = () => { if (state){ readC(); render(); restyleMapColors(); } };
+const mq = matchMedia('(prefers-color-scheme: dark)'); mq.addEventListener && mq.addEventListener('change', re);
+new MutationObserver(re).observe(document.documentElement, {attributes: true, attributeFilter: ['data-theme']});
+(function init(){
+  let a = null, e = null;
+  try { const p = new URLSearchParams(location.search); a = p.get('adresse'); e = p.get('etage'); } catch (err) {}
+  if (e != null) fl.value = parseInt(e, 10) || 0;
+  if (a){ q.value = a; $('form').requestSubmit ? $('form').requestSubmit() : $('go').click(); }
+})();
+</script>
+</body>
+</html>

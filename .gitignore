@@ -1,0 +1,3 @@
+# Données brutes téléchargées par scripts/telecharger_donnees.py (plusieurs centaines de Mo)
+sources/
+__pycache__/
