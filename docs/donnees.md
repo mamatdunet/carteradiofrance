@@ -39,6 +39,14 @@ Résultat : 322 supports diffusent le M2 et 190 une station ICI. **7 sites sur 5
 
 **Licence** : dabplus.fr n'affiche pas de licence. Son fichier `robots.txt` autorise la réutilisation, y compris par des outils d'IA. Les informations reprises sont des faits publiés au Journal officiel. Le dépôt ne conserve pas les pages, seulement la liste des sites avec leur source.
 
+## Fréquences remises en appel : Arcom
+
+**Source** : [appel aux candidatures FM du 20 mai 2026](https://www.arcom.fr/vos-services-par-media/appel-candidatures/appel-aux-candidatures-fm-du-20-mai-2026-dans-le-ressort-des-comites-techniques-de-bordeaux-caen-clermont-ferrand-dijon-lille-lyon-marseille-nancy-paris-poitiers-rennes-et-toulouse), annexe de la décision (PDF). 31 fréquences dans 30 zones : 30 libérées par Mouv', qui a quitté la FM le 31 août 2026, et une d'une radio privée dont l'autorisation a été retirée. L'Arcom ne précise pas laquelle.
+
+**Fichier** : `data/frequences-remises-en-appel-2026-05-20.csv`, recopié à la main de l'annexe (fréquence, zone, département, commune d'implantation, altitude maximale des antennes). L'Arcom ne publie pas l'emplacement exact des émetteurs : la carte place chaque fréquence au centre de sa commune d'implantation, dont les coordonnées ont été relevées une fois avec le géocodeur de l'IGN.
+
+L'Arcom n'a pas publié la liste des quelque 300 autres fréquences rendues par Radio France en juillet 2026.
+
 ## Communes : geo.api.gouv.fr
 
 La liste des communes vient de `https://geo.api.gouv.fr/communes` (nom, code INSEE, codes postaux). Elle sert uniquement à nommer la commune de chaque site d'émission. Les arrondissements de Paris, Lyon et Marseille, absents de cette liste, sont nommés par la page elle-même.

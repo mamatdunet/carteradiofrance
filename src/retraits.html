@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Où la FM a reculé</title>
+<meta name="description" content="Carte des émetteurs FM retirés entre fin juin et fin septembre 2026 d'après l'ANFR, des fréquences de Mouv' remises en appel par l'Arcom, et des émetteurs DAB+ de Radio France à proximité.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl.css">
+<link rel="stylesheet" href="https://unpkg.com/carte-facile@0.10.2/dist/carte-facile.css">
+<script type="importmap">
+{ "imports": {
+  "maplibre-gl": "https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl.mjs",
+  "carte-facile": "https://unpkg.com/carte-facile@0.10.2/dist/carte-facile.esm.js"
+} }
+</script>
+<style>
+/* Mêmes couleurs et typographie que la page principale (src/page.html). */
+:root{
+  --paper:#eef2f4; --panel:#ffffff; --ink:#14232f; --muted:#5a6b78; --rule:#d3dce2; --border:#b9c6cf;
+  --fm:#1f6f8b; --dab:#7a4fb3; --chip:#e3eaef; --focus:#1f6f8b;
+  --ok:#2f8a57; --mid:#b8900f; --vhi:#c0392b;
+  --display:"Barlow Semi Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"Source Sans 3","Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#0f171d; --panel:#16212a; --ink:#e4ecf1; --muted:#97a8b4; --rule:#2a3a46; --border:#3a4d5a;
+  --fm:#4fb3d4; --dab:#b48ae6; --chip:#22313c; --focus:#4fb3d4;
+  --ok:#4cc27f; --mid:#e0c048; --vhi:#ef6b5c; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --paper:#0f171d; --panel:#16212a; --ink:#e4ecf1; --muted:#97a8b4; --rule:#2a3a46; --border:#3a4d5a;
+  --fm:#4fb3d4; --dab:#b48ae6; --chip:#22313c; --focus:#4fb3d4;
+  --ok:#4cc27f; --mid:#e0c048; --vhi:#ef6b5c; color-scheme:dark;}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 40px}
+.wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+h1,h2{font-family:var(--display);font-weight:700;margin:0;text-wrap:balance}
+h1{font-size:clamp(1.9rem,1.3rem + 2.6vw,3.1rem);line-height:1.02}
+h2{font-size:1.35rem}
+p{margin:0}
+a{color:var(--fm)}
+[hidden]{display:none!important}
+.lbl{font-family:var(--display);font-weight:600;font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.sub{color:var(--muted)}
+.head{display:flex;flex-direction:column;gap:12px}
+.head .context{font-size:1.02rem;max-width:75ch}
+.back{font-size:.92rem}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:10px}
+.stat{background:var(--panel);border:1px solid var(--rule);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.stat b{font:700 2rem/1.05 var(--display);font-variant-numeric:tabular-nums}
+.stat span{font-size:.9rem;color:var(--muted)}
+.stat.alert b{color:var(--vhi)}
+
+.note{background:var(--panel);border:1px solid var(--rule);border-left:4px solid var(--mid);border-radius:8px;padding:12px 16px;font-size:.95rem;display:flex;flex-direction:column;gap:6px}
+
+.controls{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.seg button{font:600 .9rem var(--display);letter-spacing:.02em;padding:8px 12px;border:0;background:var(--panel);color:var(--ink);cursor:pointer}
+.seg button+button{border-left:1px solid var(--border)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+.toggle{display:inline-flex;align-items:center;gap:7px;font-size:.92rem;cursor:pointer}
+.toggle input{width:18px;height:18px;accent-color:var(--ink)}
+button:focus-visible,input:focus-visible,tr:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+.mapwrap{position:relative}
+.mapcard{position:relative;height:620px;border-radius:8px;overflow:hidden;border:1px solid var(--rule);background:var(--panel)}
+#map{position:absolute;inset:0}
+.maplegend{position:absolute;left:10px;bottom:26px;z-index:5;background:var(--panel);border:1px solid var(--rule);border-radius:5px;padding:8px 10px;font-size:.78rem;color:var(--muted);display:flex;flex-direction:column;gap:5px;max-width:260px}
+.maplegend .row{display:flex;align-items:center;gap:8px}
+.maplegend .dot{flex:none;width:12px;height:12px;border-radius:50%;border:2px solid var(--panel);box-shadow:0 0 0 1px var(--border)}
+.maplegend .ring{flex:none;width:12px;height:12px;border-radius:50%;border:3px solid var(--fm);background:var(--panel)}
+.maplegend .small{flex:none;width:7px;height:7px;margin:0 2.5px;border-radius:50%;background:var(--dab)}
+.filenote{position:absolute;inset:0;display:grid;place-items:center;padding:24px;text-align:center;color:var(--muted)}
+.maplibregl-popup-content{background:var(--panel);color:var(--ink);font-family:var(--body);font-size:.88rem;padding:9px 12px;border-radius:5px;box-shadow:0 3px 12px rgba(0,0,0,.18);max-width:290px}
+.maplibregl-popup-content b{font-weight:700}
+.maplibregl-popup-content .m{color:var(--muted);font-size:.82rem}
+.maplibregl-popup-close-button{color:var(--muted)}
+.maplibregl-popup-tip{border-top-color:var(--panel)!important;border-bottom-color:var(--panel)!important}
+
+.card{background:var(--panel);border:1px solid var(--rule);border-radius:8px;padding:16px 18px;display:flex;flex-direction:column;gap:12px}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font-family:var(--display);font-weight:600;font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+td.n,th.n{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:var(--chip)}
+.bar{display:inline-block;height:8px;border-radius:2px;background:var(--vhi);vertical-align:middle;margin-left:6px}
+.cols{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:18px}
+details summary{cursor:pointer;font:600 1rem var(--display)}
+.method{font-size:.9rem;color:var(--muted);display:flex;flex-direction:column;gap:8px}
+.method ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+footer{font-size:.82rem;color:var(--muted);border-top:1px solid var(--rule);padding-top:12px}
+@media (max-width:820px){.cols{grid-template-columns:minmax(0,1fr)}.mapcard{height:520px}}
+@media (max-width:620px){.mapcard{height:440px}.maplegend{position:static;margin-top:8px;max-width:none;display:grid;grid-template-columns:1fr 1fr;gap:5px 12px}.maplegend .lbl,.maplegend .sub{grid-column:1/-1}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="head">
+    <span class="lbl">FM, DAB+ et réorganisation de Radio France</span>
+    <h1>Où la FM a reculé</h1>
+    <p class="context">Entre fin juin et fin septembre 2026, des centaines d'émetteurs FM ont disparu de la base de l'Agence nationale des fréquences (ANFR), surtout en zone rurale et en montagne. La carte les montre, avec les 31 fréquences que l'Arcom remet en jeu, dont celles de Mouv', et indique pour chaque site si un émetteur DAB+ de Radio France prend le relais à proximité.</p>
+    <a class="back" href="./">← Tester la réception à mon adresse</a>
+  </header>
+
+  <section class="stats" id="stats" aria-label="Chiffres clés"></section>
+
+  <div class="note">
+    <p><b>Ce que la carte ne dit pas.</b> L'ANFR ne précise pas quelle radio utilisait un émetteur retiré : une partie des retraits peut concerner des radios privées. Seules les fréquences de Mouv' remises en appel sont attribuées avec certitude. La distance au plus proche émetteur DAB+ de Radio France n'est qu'un indice : la réception réelle dépend du relief et des bâtiments, que l'outil principal calcule adresse par adresse.</p>
+  </div>
+
+  <div class="controls" role="group" aria-label="Filtres de la carte">
+    <div class="seg" id="seg">
+      <button type="button" data-f="all" aria-pressed="true">Tous les sites</button>
+      <button type="button" data-f="far" aria-pressed="false">Sans DAB+ de Radio France à moins de 30 km</button>
+    </div>
+    <label class="toggle"><input type="checkbox" id="showAppel" checked> Fréquences remises en appel</label>
+    <label class="toggle"><input type="checkbox" id="showM2" checked> Émetteurs DAB+ de Radio France</label>
+  </div>
+
+  <div class="mapwrap">
+    <div class="mapcard">
+      <div id="map" role="img" aria-label="Carte de France des émetteurs FM retirés"></div>
+      <p class="filenote" id="filenote" hidden>La carte ne s'affiche pas quand la page est ouverte directement depuis un fichier. Servez-la avec un petit serveur web (voir docs/deploiement.md).</p>
+    </div>
+    <div class="maplegend" id="legend">
+      <span class="lbl">Émetteurs FM retirés</span>
+      <div class="row"><span class="dot" style="background:var(--ok)"></span>DAB+ de Radio France à moins de 15 km</div>
+      <div class="row"><span class="dot" style="background:var(--mid)"></span>DAB+ de Radio France entre 15 et 30 km</div>
+      <div class="row"><span class="dot" style="background:var(--vhi)"></span>Aucun à moins de 30 km</div>
+      <div class="row sub">Taille du cercle : nombre d'émetteurs retirés</div>
+      <div class="row"><span class="ring"></span>Fréquence remise en appel (Mouv')</div>
+      <div class="row"><span class="small"></span>Émetteur DAB+ de Radio France</div>
+    </div>
+  </div>
+
+  <div class="cols">
+    <section class="card">
+      <h2>Par département</h2>
+      <p class="sub">Cliquez sur une ligne pour centrer la carte.</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Département</th><th class="n">Sites</th><th class="n">Émetteurs retirés</th><th class="n">Sans DAB+ RF &lt; 30 km</th></tr></thead>
+          <tbody id="deps"></tbody>
+        </table>
+      </div>
+    </section>
+    <section class="card">
+      <h2>Les 31 fréquences remises en appel</h2>
+      <p class="sub">Appel aux candidatures de l'Arcom du 20 mai 2026 : 30 fréquences libérées par Mouv', qui a quitté la FM le 31 août, et une fréquence d'une radio privée dont l'autorisation a été retirée. L'Arcom ne précise pas laquelle.</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Zone</th><th class="n">MHz</th></tr></thead>
+          <tbody id="appel"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <section class="card method">
+    <h2 style="color:var(--ink)">Méthode et limites</h2>
+    <ul>
+      <li><b>Émetteurs retirés</b> : comparaison des exports ANFR du 30 juin et du 30 septembre 2026, émetteur par émetteur (identifiant <code>EMR_ID</code>). Un émetteur simplement modifié peut changer d'identifiant : quand un émetteur FM a été ajouté à moins de 300 m d'un retrait, la fiche du site le signale.</li>
+      <li><b>FM encore en service</b> : nombre d'émetteurs FM déclarés à moins de 300 m dans l'export de septembre. Un site peut perdre une radio et en garder d'autres.</li>
+      <li><b>DAB+ de Radio France</b> : supports qui diffusent le multiplex national (France Inter, franceinfo, France Culture, France Musique, FIP, Mouv'), d'après les décisions de l'Arcom relevées par dabplus.fr. La distance est mesurée à vol d'oiseau depuis le site retiré.</li>
+      <li><b>Fréquences remises en appel</b> : annexe de la décision de l'Arcom du 20 mai 2026. Le point est placé au centre de la commune d'implantation : l'Arcom ne publie pas l'emplacement exact de l'émetteur.</li>
+      <li>L'export de septembre peut ne pas encore refléter toutes les opérations de l'été, selon le rythme de mise à jour de la base de l'ANFR.</li>
+    </ul>
+  </section>
+
+  <footer>
+    Sources : <a href="https://www.data.gouv.fr/datasets/donnees-sur-les-installations-radioelectriques-de-plus-de-5-watts-1" target="_blank" rel="noopener">ANFR, installations radioélectriques &gt; 5 W</a> (exports du 30 juin et du 30 septembre 2026) · <a href="https://www.arcom.fr/vos-services-par-media/appel-candidatures/appel-aux-candidatures-fm-du-20-mai-2026-dans-le-ressort-des-comites-techniques-de-bordeaux-caen-clermont-ferrand-dijon-lille-lyon-marseille-nancy-paris-poitiers-rennes-et-toulouse" target="_blank" rel="noopener">Arcom, appel aux candidatures FM du 20 mai 2026</a> · <a href="https://www.dabplus.fr/metropolitain" target="_blank" rel="noopener">dabplus.fr</a> (sites DAB+ publiés au Journal officiel) · <a href="https://fab-geocommuns.github.io/carte-facile-site/" target="_blank" rel="noopener">Carte facile</a> (IGN).
+    Ce n'est pas un outil officiel de Radio France, de l'Arcom, de l'ANFR ou de l'IGN.
+  </footer>
+</div>
+
+<script>/*RET*/</script>
+<script type="module">
+import * as maplibregl from "maplibre-gl";
+import { mapStyles } from "carte-facile";
+// Le worker de MapLibre vient d'un CDN : on le lance via une petite URL blob qui l'importe.
+if (location.protocol !== 'file:') maplibregl.setWorkerUrl(URL.createObjectURL(new Blob(['import "https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl-worker.mjs";'], {type: 'text/javascript'})));
+
+const $ = id => document.getElementById(id);
+const esc = t => String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const nf = n => n.toLocaleString('fr-FR');
+const km = x => x >= 999 ? null : x.toLocaleString('fr-FR', {maximumFractionDigits: 0});
+const titleCase = s => s.toLowerCase().replace(/(^|[\s\-'’(])(\p{L})/gu, (m, a, b) => a + b.toUpperCase()).replace(/\b(De|Du|Des|La|Le|Les|Sur|Sous|En|Et|D'|L')\b/g, w => w.toLowerCase());
+
+const DEPS = {'01':'Ain','02':'Aisne','03':'Allier','04':'Alpes-de-Haute-Provence','05':'Hautes-Alpes','06':'Alpes-Maritimes','07':'Ardèche','08':'Ardennes','09':'Ariège','10':'Aube','11':'Aude','12':'Aveyron','13':'Bouches-du-Rhône','14':'Calvados','15':'Cantal','16':'Charente','17':'Charente-Maritime','18':'Cher','19':'Corrèze','2A':'Corse-du-Sud','2B':'Haute-Corse','21':"Côte-d'Or",'22':"Côtes-d'Armor",'23':'Creuse','24':'Dordogne','25':'Doubs','26':'Drôme','27':'Eure','28':'Eure-et-Loir','29':'Finistère','30':'Gard','31':'Haute-Garonne','32':'Gers','33':'Gironde','34':'Hérault','35':'Ille-et-Vilaine','36':'Indre','37':'Indre-et-Loire','38':'Isère','39':'Jura','40':'Landes','41':'Loir-et-Cher','42':'Loire','43':'Haute-Loire','44':'Loire-Atlantique','45':'Loiret','46':'Lot','47':'Lot-et-Garonne','48':'Lozère','49':'Maine-et-Loire','50':'Manche','51':'Marne','52':'Haute-Marne','53':'Mayenne','54':'Meurthe-et-Moselle','55':'Meuse','56':'Morbihan','57':'Moselle','58':'Nièvre','59':'Nord','60':'Oise','61':'Orne','62':'Pas-de-Calais','63':'Puy-de-Dôme','64':'Pyrénées-Atlantiques','65':'Hautes-Pyrénées','66':'Pyrénées-Orientales','67':'Bas-Rhin','68':'Haut-Rhin','69':'Rhône','70':'Haute-Saône','71':'Saône-et-Loire','72':'Sarthe','73':'Savoie','74':'Haute-Savoie','75':'Paris','76':'Seine-Maritime','77':'Seine-et-Marne','78':'Yvelines','79':'Deux-Sèvres','80':'Somme','81':'Tarn','82':'Tarn-et-Garonne','83':'Var','84':'Vaucluse','85':'Vendée','86':'Vienne','87':'Haute-Vienne','88':'Vosges','89':'Yonne','90':'Territoire de Belfort','91':'Essonne','92':'Hauts-de-Seine','93':'Seine-Saint-Denis','94':'Val-de-Marne','95':"Val-d'Oise",'971':'Guadeloupe','972':'Martinique','973':'Guyane','974':'La Réunion','976':'Mayotte'};
+
+const S = window.RET.sites.map(r => ({lat:r[0], lon:r[1], insee:r[2], com:r[3], lieu:r[4], n:r[5], ops:r[6], reste:r[7], ajout:r[8], dm2:r[9], ddab:r[10]}));
+S.forEach(s => { s.dep = /^97/.test(s.insee) ? s.insee.slice(0, 3) : s.insee.slice(0, 2); s.cls = s.dm2 < 15 ? 'ok' : s.dm2 <= 30 ? 'mid' : 'vhi'; });
+const A = window.RET.appel.map(r => ({f:r[0], zone:r[1], dep:r[2], com:r[3], lat:r[4], lon:r[5]}));
+const M2 = window.RET.m2;
+
+/* ---------- Chiffres clés ---------- */
+const far = S.filter(s => s.cls === 'vhi');
+$('stats').innerHTML = [
+  [nf(S.reduce((a, s) => a + s.n, 0)), 'émetteurs FM retirés entre fin juin et fin septembre'],
+  [nf(S.length), 'sites d\'émission concernés'],
+  [nf(far.length), 'de ces sites sans émetteur DAB+ de Radio France à moins de 30 km', 'alert'],
+  [nf(A.length), 'fréquences remises en appel par l\'Arcom, dont 30 de Mouv\'']
+].map(([b, t, c]) => '<div class="stat' + (c ? ' ' + c : '') + '"><b>' + b + '</b><span>' + t + '</span></div>').join('');
+
+/* ---------- Tableaux ---------- */
+const byDep = {};
+for (const s of S){ const d = byDep[s.dep] ??= {dep: s.dep, sites: 0, n: 0, far: 0, pts: []}; d.sites++; d.n += s.n; d.far += s.cls === 'vhi'; d.pts.push(s); }
+const deps = Object.values(byDep).sort((a, b) => b.n - a.n || b.far - a.far);
+const maxN = deps[0]?.n || 1;
+$('deps').innerHTML = deps.map(d => '<tr tabindex="0" data-dep="' + d.dep + '"><td>' + esc(DEPS[d.dep] || d.dep) + ' <span class="sub">(' + d.dep + ')</span></td><td class="n">' + d.sites + '</td><td class="n">' + d.n + '<span class="bar" style="width:' + Math.round(40 * d.n / maxN) + 'px"></span></td><td class="n">' + (d.far || '–') + '</td></tr>').join('');
+$('appel').innerHTML = A.map((a, i) => '<tr tabindex="0" data-a="' + i + '"><td>' + esc(a.zone) + (a.com !== a.zone ? ' <span class="sub">(émetteur à ' + esc(a.com) + ')</span>' : '') + '</td><td class="n">' + a.f.toLocaleString('fr-FR', {minimumFractionDigits: 1}) + '</td></tr>').join('');
+
+/* ---------- Carte ---------- */
+let map = null, popup = null, filt = 'all';
+const fc = feats => ({type: 'FeatureCollection', features: feats});
+const pt = (lon, lat, props) => ({type: 'Feature', properties: props, geometry: {type: 'Point', coordinates: [lon, lat]}});
+
+function siteHtml(s){
+  const lines = [
+    '<b>' + esc(s.com || s.insee) + '</b>' + (s.lieu ? ' · ' + esc(titleCase(s.lieu)) : ''),
+    s.n + ' émetteur' + (s.n > 1 ? 's' : '') + ' FM retiré' + (s.n > 1 ? 's' : '') + (s.ops ? ' <span class="m">(' + esc(s.ops) + ')</span>' : ''),
+    s.reste ? s.reste + ' émetteur' + (s.reste > 1 ? 's' : '') + ' FM encore en service sur le site' : 'Plus aucun émetteur FM déclaré sur le site',
+  ];
+  if (s.ajout) lines.push('<span class="m">' + s.ajout + ' émetteur' + (s.ajout > 1 ? 's' : '') + ' FM ajouté' + (s.ajout > 1 ? 's' : '') + ' à côté : peut-être un simple changement d\'identifiant</span>');
+  lines.push(km(s.dm2) ? 'Émetteur DAB+ de Radio France le plus proche : <b>' + km(s.dm2) + ' km</b>' : 'Aucun émetteur DAB+ de Radio France connu à proximité');
+  lines.push('<a href="./?adresse=' + encodeURIComponent((s.com || '') + ' ' + s.insee.slice(0, 2)) + '">Tester une adresse dans cette commune →</a>');
+  return lines.join('<br>');
+}
+function appelHtml(a){
+  return '<b>' + esc(a.zone) + ' · ' + a.f.toLocaleString('fr-FR', {minimumFractionDigits: 1}) + ' MHz</b><br>Fréquence remise en appel par l\'Arcom le 20 mai 2026'
+    + '<br><span class="m">Émetteur à ' + esc(a.com) + ' ; point placé au centre de la commune</span>';
+}
+
+function siteFeatures(){
+  const col = {ok: css('--ok'), mid: css('--mid'), vhi: css('--vhi')};
+  return fc(S.map((s, i) => s.cls !== 'vhi' && filt === 'far' ? null : pt(s.lon, s.lat, {i, n: s.n, col: col[s.cls]})).filter(Boolean));
+}
+function paint(){
+  if (!map || !map.getSource('sites')) return;
+  map.getSource('sites').setData(siteFeatures());
+  map.setPaintProperty('sites', 'circle-stroke-color', css('--panel'));
+  map.setPaintProperty('appel', 'circle-color', css('--panel'));
+  map.setPaintProperty('appel', 'circle-stroke-color', css('--fm'));
+  map.setPaintProperty('m2', 'circle-color', css('--dab'));
+  map.setLayoutProperty('appel', 'visibility', $('showAppel').checked ? 'visible' : 'none');
+  map.setLayoutProperty('m2', 'visibility', $('showM2').checked ? 'visible' : 'none');
+}
+function show(lngLat, html){
+  popup?.remove();
+  popup = new maplibregl.Popup({closeButton: true, maxWidth: '300px'}).setLngLat(lngLat).setHTML(html).addTo(map);
+}
+function fit(pts, maxZoom = 9){
+  if (!map || !pts.length) return;
+  const b = new maplibregl.LngLatBounds();
+  pts.forEach(p => b.extend([p.lon, p.lat]));
+  map.fitBounds(b, {padding: 60, maxZoom, duration: 600});
+}
+
+function initMap(){
+  if (location.protocol === 'file:'){ $('filenote').hidden = false; $('legend').hidden = true; return; }
+  // Cadrage initial dans le constructeur : un clic sur le tableau avant la fin du chargement n'est pas annulé.
+  map = new maplibregl.Map({container: 'map', style: mapStyles.desaturated, bounds: [[-5.2, 41.3], [9.7, 51.2]], fitBoundsOptions: {padding: 20}, minZoom: 3, maxZoom: 14, attributionControl: {compact: true}});
+  map.addControl(new maplibregl.NavigationControl({showCompass: false}), 'top-right');
+  map.addControl(new maplibregl.ScaleControl(), 'bottom-right');
+  map.on('load', () => {
+    map.addSource('m2', {type: 'geojson', data: fc(M2.map(m => pt(m[1], m[0], {com: m[2]})))});
+    map.addSource('sites', {type: 'geojson', data: fc([])});
+    map.addSource('appel', {type: 'geojson', data: fc(A.map((a, i) => pt(a.lon, a.lat, {i})))});
+    map.addLayer({id: 'm2', type: 'circle', source: 'm2', paint: {'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 2, 9, 4.5], 'circle-color': css('--dab'), 'circle-opacity': .75}});
+    map.addLayer({id: 'sites', type: 'circle', source: 'sites', paint: {
+      'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, ['+', 2.5, ['*', 1.6, ['sqrt', ['get', 'n']]]], 9, ['+', 6, ['*', 3.5, ['sqrt', ['get', 'n']]]]],
+      'circle-color': ['get', 'col'], 'circle-opacity': .9, 'circle-stroke-color': css('--panel'), 'circle-stroke-width': 1.2}});
+    map.addLayer({id: 'appel', type: 'circle', source: 'appel', paint: {'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 5, 9, 9], 'circle-color': css('--panel'), 'circle-stroke-color': css('--fm'), 'circle-stroke-width': 3}});
+    paint();
+    for (const id of ['sites', 'appel', 'm2']){
+      map.on('mouseenter', id, () => { map.getCanvas().style.cursor = 'pointer'; });
+      map.on('mouseleave', id, () => { map.getCanvas().style.cursor = ''; });
+    }
+    // Un clic peut toucher plusieurs couches : on privilégie les fréquences remises en appel, puis les sites retirés.
+    map.on('click', e => {
+      const f = map.queryRenderedFeatures(e.point, {layers: ['appel', 'sites', 'm2'].filter(l => map.getLayoutProperty(l, 'visibility') !== 'none')});
+      if (!f.length) return;
+      const h = f[0];
+      if (h.layer.id === 'appel') show(h.geometry.coordinates, appelHtml(A[h.properties.i]));
+      else if (h.layer.id === 'sites') show(h.geometry.coordinates, siteHtml(S[h.properties.i]));
+      else show(h.geometry.coordinates, '<b>' + esc(h.properties.com) + '</b><br>Émetteur DAB+ de Radio France (France Inter, franceinfo, France Culture, France Musique, FIP, Mouv\')');
+    });
+  });
+}
+
+/* ---------- Contrôles ---------- */
+$('seg').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  filt = b.dataset.f;
+  $('seg').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
+  popup?.remove(); paint();
+});
+$('showAppel').onchange = $('showM2').onchange = paint;
+const onRow = (tbody, fn) => {
+  tbody.addEventListener('click', e => { const tr = e.target.closest('tr'); if (tr) fn(tr); });
+  tbody.addEventListener('keydown', e => { const tr = e.target.closest('tr'); if (tr && e.key === 'Enter') fn(tr); });
+};
+onRow($('deps'), tr => { fit(byDep[tr.dataset.dep].pts); $('map').scrollIntoView({behavior: 'smooth', block: 'center'}); });
+onRow($('appel'), tr => {
+  const a = A[+tr.dataset.a];
+  if (!$('showAppel').checked){ $('showAppel').checked = true; paint(); }
+  map?.flyTo({center: [a.lon, a.lat], zoom: 9, duration: 600});
+  if (map) show([a.lon, a.lat], appelHtml(a));
+  $('map').scrollIntoView({behavior: 'smooth', block: 'center'});
+});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', paint);
+
+initMap();
+</script>
+</body>
+</html>

@@ -19,7 +19,7 @@ python3 scripts/extraire_multiplex.py sources/dabplus data/multiplex-radio-franc
 # 3. Extraire les sites FM et DAB+, et leur rattacher les multiplex de Radio France
 python3 scripts/extraire_emetteurs.py sources/anfr-AAAAMMJJ sources/communes.json data/emetteurs.js data/multiplex-radio-france.csv
 
-# 4. Reconstruire la page
+# 4. Reconstruire les pages (index.html et retraits.html)
 python3 scripts/assembler_page.py
 
 # 5. Vérifier localement, puis publier
@@ -44,7 +44,15 @@ python3 scripts/telecharger_donnees.py            # le plus récent
 python3 scripts/comparer_exports.py sources/anfr-20260630 sources/anfr-20260930 analyses/comparaison.csv
 ```
 
-Le script affiche les totaux et écrit la liste détaillée des émetteurs retirés ou ajoutés. Ses limites sont décrites dans [incertitudes.md](incertitudes.md#5-comparaison-des-exports-anfr).
+Le script affiche les totaux et écrit la liste détaillée des émetteurs retirés ou ajoutés. Pour mettre à jour la carte des retraits à partir de cette comparaison :
+
+```bash
+python3 scripts/preparer_carte_retraits.py analyses/comparaison.csv \
+    data/frequences-remises-en-appel-2026-05-20.csv data/emetteurs.js sources/communes.json data/retraits.js
+python3 scripts/assembler_page.py
+```
+
+Pensez alors à adapter les dates citées dans `src/retraits.html`. Ses limites sont décrites dans [incertitudes.md](incertitudes.md#5-comparaison-des-exports-anfr).
 
 ## Automatiser
 

@@ -43,13 +43,18 @@ Pour la mise en ligne (GitHub Pages ou tout hébergement statique), voir [docs/d
 | Chemin | Rôle |
 |---|---|
 | `index.html` | La page complète, prête à servir. Elle est **générée** : ne pas l'éditer à la main. |
+| `retraits.html` | La carte « Où la FM a reculé » : émetteurs FM retirés, fréquences de Mouv' remises en appel, distance au DAB+ de Radio France. **Générée** elle aussi. |
 | `src/page.html` | Le gabarit de la page (HTML, CSS, JavaScript). C'est ici qu'on modifie l'interface et le calcul. |
+| `src/retraits.html` | Le gabarit de la carte des retraits. |
 | `data/emetteurs.js` | La liste des sites FM/DAB+ extraite de l'ANFR, injectée dans la page. |
+| `data/retraits.js` | Les données de la carte des retraits, injectées dans `retraits.html`. |
+| `data/frequences-remises-en-appel-2026-05-20.csv` | Les 31 fréquences FM remises en appel par l'Arcom le 20 mai 2026 (30 de Mouv'), recopiées de l'annexe de la décision. |
 | `data/multiplex-radio-france.csv` | Les sites DAB+ qui diffusent Radio France (multiplex national M2, stations ICI), avec la décision du Journal officiel correspondante. |
 | `scripts/telecharger_donnees.py` | Télécharge l'export ANFR, la liste des communes et les pages de dabplus.fr. |
 | `scripts/extraire_multiplex.py` | Produit `data/multiplex-radio-france.csv` à partir des pages de dabplus.fr. |
 | `scripts/extraire_emetteurs.py` | Produit `data/emetteurs.js` à partir de l'export ANFR et y rattache les multiplex de Radio France. |
-| `scripts/assembler_page.py` | Assemble `index.html` à partir de `src/page.html` et `data/emetteurs.js`. |
+| `scripts/preparer_carte_retraits.py` | Produit `data/retraits.js` à partir de la comparaison des exports, des fréquences remises en appel et de `data/emetteurs.js`. |
+| `scripts/assembler_page.py` | Assemble `index.html` et `retraits.html` à partir des gabarits de `src/` et des données. |
 | `scripts/comparer_exports.py` | Compare deux exports ANFR (émetteurs retirés ou ajoutés). |
 | `analyses/` | Résultats de comparaisons, dont l'effet de la réorganisation entre fin juin et fin septembre 2026. |
 | `docs/` | Documentation détaillée. |
@@ -71,7 +76,7 @@ En comparant l'export ANFR du 30 juin 2026 (avant la bascule) à celui du 30 sep
 - **DAB+** : le parc passe de 1 084 à 1 106 émetteurs, soit 22 ajouts.
 - **Répartition** : les retraits FM se concentrent dans les départements ruraux et montagneux. L'Aveyron arrive en tête, suivi des Hautes-Alpes, de la Côte-d'Or, du Lot, de la Savoie, de la Corse-du-Sud et du Gard.
 
-Le détail par émetteur se trouve dans `analyses/`. Les limites de cette comparaison sont expliquées dans [docs/incertitudes.md](docs/incertitudes.md#5-comparaison-des-exports-anfr).
+La carte [`retraits.html`](retraits.html) montre ces retraits site par site, avec la distance au plus proche émetteur DAB+ de Radio France : 128 des 391 sites n'en ont aucun à moins de 30 km. Le détail par émetteur se trouve dans `analyses/`. Les limites de cette comparaison sont expliquées dans [docs/incertitudes.md](docs/incertitudes.md#5-comparaison-des-exports-anfr).
 
 ## Ce que l'outil ne dit pas
 

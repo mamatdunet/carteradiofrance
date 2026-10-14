@@ -1,17 +1,23 @@
-"""Assemble index.html à partir du gabarit et de la liste des émetteurs.
+"""Assemble les pages publiées à partir des gabarits et des données.
 
 Usage :
-    python3 scripts/assembler_page.py            # src/page.html + data/emetteurs.js → index.html
+    python3 scripts/assembler_page.py
 
-Le gabarit contient un emplacement /*TX*/ dans une balise <script> ; il est remplacé
-par le contenu de data/emetteurs.js (window.TX = [...]).
+- src/page.html + data/emetteurs.js → index.html (emplacement /*TX*/) ;
+- src/retraits.html + data/retraits.js → retraits.html (emplacement /*RET*/).
+
+Chaque emplacement se trouve dans une balise <script> ; il est remplacé par le contenu
+du fichier de données (window.TX = [...] ou window.RET = {...}).
 """
 import pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-tpl = (ROOT / "src" / "page.html").read_text(encoding="utf-8")
-data = (ROOT / "data" / "emetteurs.js").read_text(encoding="utf-8")
-if "/*TX*/" not in tpl:
-    raise SystemExit("Emplacement /*TX*/ introuvable dans src/page.html")
-(ROOT / "index.html").write_text(tpl.replace("/*TX*/", data, 1), encoding="utf-8")
-print("index.html assemblé")
+PAGES = [("page.html", "index.html", "/*TX*/", "emetteurs.js"),
+         ("retraits.html", "retraits.html", "/*RET*/", "retraits.js")]
+
+for src, out, slot, data in PAGES:
+    tpl = (ROOT / "src" / src).read_text(encoding="utf-8")
+    if slot not in tpl:
+        raise SystemExit(f"Emplacement {slot} introuvable dans src/{src}")
+    (ROOT / out).write_text(tpl.replace(slot, (ROOT / "data" / data).read_text(encoding="utf-8"), 1), encoding="utf-8")
+    print(f"{out} assemblé")
