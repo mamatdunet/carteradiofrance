@@ -301,12 +301,13 @@ q.addEventListener('keydown', e => {
   if (sugg.hidden) return;
   if (e.key === 'ArrowDown'){ e.preventDefault(); sel = Math.min(sel + 1, hits.length - 1); renderSugg(); }
   else if (e.key === 'ArrowUp'){ e.preventDefault(); sel = Math.max(sel - 1, 0); renderSugg(); }
-  else if (e.key === 'Enter' && hits[sel]){ e.preventDefault(); pick(hits[sel], true); }
+  else if (e.key === 'Enter' && hits[sel]){ e.preventDefault(); pick(hits[sel]); }
   else if (e.key === 'Escape'){ sugg.hidden = true; }
 });
-sugg.addEventListener('mousedown', e => { const li = e.target.closest('li'); if (li){ e.preventDefault(); pick(hits[+li.dataset.i], true); } });
+sugg.addEventListener('mousedown', e => { const li = e.target.closest('li'); if (li){ e.preventDefault(); pick(hits[+li.dataset.i]); } });
 q.addEventListener('blur', () => setTimeout(() => { sugg.hidden = true; q.setAttribute('aria-expanded', 'false'); }, 150));
-function pick(h, run){ picked = h; q.value = h.label; sugg.hidden = true; q.setAttribute('aria-expanded', 'false'); if (run) analyse(); }
+// Choisir une proposition remplit le champ ; l'analyse part du bouton « Vérifier », qui reçoit le focus.
+function pick(h){ picked = h; q.value = h.label; sugg.hidden = true; q.setAttribute('aria-expanded', 'false'); $('go').focus(); }
 
 const fl = $('floor');
 const getFloor = () => Math.max(0, Math.min(60, parseInt(fl.value, 10) || 0));
@@ -355,7 +356,7 @@ function chooseSites(lat, lon){
 let state = null, run = 0;
 async function analyse(){
   const me = ++run, h = picked; if (!h) return;
-  $('go').disabled = true;
+  $('go').disabled = true; $('go').textContent = 'Vérification…';
   const steps = [['run', 'Émetteurs proches'], ['', 'Relief'], ['', 'Bâtiments']];
   setStatus(steps);
   try {
@@ -385,7 +386,7 @@ async function analyse(){
     $('diag').scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start'});
   } catch (e) {
     setStatus([['err', 'Un service de l\'IGN n\'a pas répondu (' + (e.message || 'erreur réseau') + '). Réessayez dans un instant.']]);
-  } finally { $('go').disabled = false; }
+  } finally { if (me === run){ $('go').disabled = false; $('go').textContent = 'Vérifier'; } }
 }
 
 function prepBati(feats, h){
@@ -516,20 +517,21 @@ function renderDiag(){
 }
 
 /* ---------- Carte (Carte facile + MapLibre) ---------- */
-let map = null, popup = null, view = 'local', focus = null;
+let map = null, mapP = null, popup = null, view = 'local', focus = null;
 function mapReady(){
   if (location.protocol === 'file:'){
     $('filenote').hidden = false; document.querySelectorAll('.mapbar,.maplegend').forEach(el => el.hidden = true);
     return Promise.reject(new Error('file'));
   }
-  if (map) return map.loaded() ? Promise.resolve() : new Promise(res => map.once('load', res));
+  // L'événement « load » ne survient qu'une fois : on garde la promesse plutôt que de tester map.loaded(), faux tant que des tuiles chargent.
+  if (mapP) return mapP;
   map = new maplibregl.Map({container: 'map', style: mapStyles.desaturated, maxZoom: 18.9, center: [state.addr.lon, state.addr.lat], zoom: 16, pitch: 55, attributionControl: {compact: true}});
   map.addControl(new maplibregl.NavigationControl({visualizePitch: true}), 'top-right');
   map.addControl(new maplibregl.ScaleControl(), 'bottom-right');
   popup = new maplibregl.Popup({closeButton: false, closeOnClick: false, offset: 8});
   $('v-local').onclick = () => setView('local');
   $('v-all').onclick = () => setView('all');
-  return new Promise(res => map.once('load', () => {
+  return mapP = new Promise(res => map.once('load', () => {
     try { hideLayer(map, 'buildings'); } catch (e) {}
     map.addSource('bati', {type: 'geojson', data: empty()});
     map.addSource('rays', {type: 'geojson', data: empty()});
