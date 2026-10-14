@@ -2,7 +2,9 @@
 
 - l'export ANFR « Tables supports antennes émetteurs bandes » le plus récent
   (ou celui d'un mois donné) depuis data.gouv.fr ;
-- la liste des communes (nom, code INSEE) depuis geo.api.gouv.fr.
+- la liste des communes (nom, code INSEE) depuis geo.api.gouv.fr ;
+- les pages zone par zone de dabplus.fr (multiplex DAB+, radios et sites d'émission), dont
+  scripts/extraire_multiplex.py tire les sites qui diffusent Radio France.
 
 Usage :
     python3 scripts/telecharger_donnees.py              # export le plus récent
@@ -10,10 +12,13 @@ Usage :
 
 Les fichiers sont écrits dans sources/ (ignoré par git, voir .gitignore).
 """
-import argparse, io, json, pathlib, time, urllib.request, zipfile
+import argparse, io, json, pathlib, re, time, urllib.request, zipfile
 
 DATASET = "https://www.data.gouv.fr/api/1/datasets/551d4ff3c751df55da0cd89f/"
 COMMUNES = "https://geo.api.gouv.fr/communes?fields=nom,code,codesPostaux&format=json"
+DABPLUS = "https://www.dabplus.fr"
+# Pages du plan du site qui ne décrivent pas une zone.
+DABPLUS_HORS_ZONE = {"recepteurs", "en-voiture", "promotion", "contact", "faq", "actualite", "actualites"}
 ROOT = pathlib.Path(__file__).resolve().parent.parent / "sources"
 
 
@@ -49,6 +54,17 @@ def main():
 
     (ROOT / "communes.json").write_bytes(get(COMMUNES))
     print("Communes : sources/communes.json")
+
+    plan = get(DABPLUS + "/sitemap.xml").decode("utf-8")
+    pages = [u for u in re.findall(r"<loc>([^<]+)</loc>", plan)
+             if re.fullmatch(re.escape(DABPLUS) + r"/(metropolitain/)?[a-z0-9-]+/?", u)
+             and u.rstrip("/").rsplit("/", 1)[-1] not in DABPLUS_HORS_ZONE]
+    for u in pages:
+        dest = ROOT / "dabplus" / (u.rstrip("/")[len(DABPLUS) + 1:] + ".html")
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(get(u))
+        time.sleep(0.5)  # le site est tenu par un particulier : on ne le sollicite pas trop vite
+    print(f"dabplus.fr : {len(pages)} pages dans sources/dabplus/")
 
 
 if __name__ == "__main__":

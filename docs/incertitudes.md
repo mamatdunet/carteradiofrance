@@ -15,17 +15,18 @@ L'ANFR ne publie ni la puissance apparente rayonnée (PAR) ni le diagramme d'ant
 
 *Pistes* : récupérer les puissances autorisées. Elles figurent dans les décisions d'autorisation de l'Arcom, publiées en PDF. On pourrait aussi demander à l'Arcom ou à l'ANFR un export structuré, ou intégrer une estimation par catégorie de site.
 
-### On ne sait pas quelles radios passent par quel émetteur — impact : **fort**
-L'ANFR ne publie ni le nom du programme ni la fréquence exacte : la bande indiquée est 87,5–108 MHz pour toute la FM. L'outil ne peut donc pas dire que France Musique ou franceinfo passent par l'émetteur le plus favorable.
+### Radios portées par chaque émetteur : reconstituées pour le DAB+, inconnues en FM — impact : **moyen**
+L'ANFR ne publie ni le nom du programme ni la fréquence exacte. Pour le DAB+, l'outil reconstitue l'information : il sait quels sites diffusent le multiplex national M2 (France Inter, franceinfo, France Culture, France Musique, FIP, Mouv') et les stations ICI, d'après les décisions de l'Arcom relevées par dabplus.fr (voir [donnees.md](donnees.md#sites-dab-de-radio-france--décisions-de-larcom-relevées-par-dabplusfr)). Le verdict DAB+ porte donc bien sur Radio France.
 
-Pour le DAB+, un émetteur diffuse un ou plusieurs *multiplex*, chacun regroupant une dizaine de radios. Rien ne garantit que le multiplex qui porte Radio France soit diffusé depuis le site le plus favorable.
-
-*Effet* : la question posée par le titre (« puis-je capter Radio France ? ») n'est qu'approchée. L'outil répond en réalité à « est-ce qu'un émetteur DAB+ a des chances de m'atteindre ? ».
+Restent incertains :
+- **le rattachement** des sites de la liste aux supports ANFR, fait par commune. Il peut se tromper de support quand plusieurs sites DAB+ existent dans une même commune à plus de 1 km l'un de l'autre. 7 sites sur 515 ne sont pas rattachés, dont 2 sites M2 ;
+- **la fraîcheur** de la liste : dabplus.fr est tenu à jour par un particulier, et le M2 s'étend plusieurs fois par an. Un site récent peut manquer. L'outil répondrait alors « probablement pas » à tort ;
+- **la FM** : on ne sait toujours pas quelles radios passent par quel émetteur FM.
 
 *Pistes* :
-- croiser avec les listes de multiplex et d'allotissements DAB+ publiées par l'Arcom ;
-- interroger le moteur de recherche de Radio France, qui n'est pas en open data : il faudrait demander un accès ;
-- en attendant, l'outil renvoie vers Ma Radio DAB+ (Arcom).
+- obtenir de l'Arcom ou de Radio France un export structuré (site, multiplex, coordonnées), qui supprimerait le rattachement par commune ;
+- pour la FM, demander à Radio France la liste de ses fréquences par site : son moteur de recherche n'est pas en open data ;
+- la puissance apparente rayonnée figure dans la même liste : elle pourrait servir dans le calcul (voir le point précédent).
 
 ### Pas de zone de couverture officielle
 Les cartes de couverture DAB+ de l'Arcom et des opérateurs, quand elles existent, ne sont pas disponibles en données ouvertes exploitables. Il est donc impossible de vérifier l'outil contre une référence.
@@ -143,7 +144,7 @@ Les chiffres de retraits (406 émetteurs FM entre le 30 juin et le 30 septembre 
 | Incertitude | Impact | Réductible ? |
 |---|---|---|
 | Puissance des émetteurs | Fort | Oui, avec des données Arcom à structurer |
-| Radios portées par chaque émetteur | Fort | Oui, avec Arcom ou Radio France |
+| Radios portées par chaque émetteur | Moyen (DAB+ reconstitué, FM inconnue) | Oui, avec un export Arcom ou Radio France |
 | Seuils du verdict non calibrés | Fort | Oui, par des mesures de terrain |
 | Murs et orientation du logement | Moyen à fort | En partie, en demandant l'orientation |
 | Réflexions urbaines (plafond 20 dB) | Moyen | En partie, avec un modèle plus riche |

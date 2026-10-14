@@ -9,12 +9,12 @@ Depuis la nuit du 21 au 22 juillet 2026, Radio France a réorganisé son réseau
 ## Ce que fait la page
 
 1. Vous saisissez une adresse (autocomplétion IGN) et un étage.
-2. La page choisit jusqu'à 6 sites d'émission FM/DAB+ proches parmi les 4 666 déclarés à l'ANFR.
+2. La page choisit une dizaine de sites d'émission FM/DAB+ proches parmi les 4 666 déclarés à l'ANFR, dont ceux qui diffusent Radio France en DAB+.
 3. Pour chaque site, elle récupère en direct :
    - le profil du relief entre votre adresse et l'antenne (RGE ALTI, IGN) ;
    - les bâtiments dans un rayon de 350 m (BD TOPO, IGN), avec leur hauteur.
 4. Elle calcule ce que le relief et les toits voisins retirent au signal, en appliquant le modèle de diffraction en lame de couteau de la recommandation UIT-R P.526.
-5. Elle traduit le résultat en un verdict lisible :
+5. Elle traduit le résultat en un verdict lisible, calculé sur l'émetteur de Radio France le plus favorable :
    - « Oui, très probablement » ;
    - « Oui, probablement » ;
    - « C'est incertain » ;
@@ -45,8 +45,10 @@ Pour la mise en ligne (GitHub Pages ou tout hébergement statique), voir [docs/d
 | `index.html` | La page complète, prête à servir. Elle est **générée** : ne pas l'éditer à la main. |
 | `src/page.html` | Le gabarit de la page (HTML, CSS, JavaScript). C'est ici qu'on modifie l'interface et le calcul. |
 | `data/emetteurs.js` | La liste des sites FM/DAB+ extraite de l'ANFR, injectée dans la page. |
-| `scripts/telecharger_donnees.py` | Télécharge l'export ANFR et la liste des communes. |
-| `scripts/extraire_emetteurs.py` | Produit `data/emetteurs.js` à partir de l'export ANFR. |
+| `data/multiplex-radio-france.csv` | Les sites DAB+ qui diffusent Radio France (multiplex national M2, stations ICI), avec la décision du Journal officiel correspondante. |
+| `scripts/telecharger_donnees.py` | Télécharge l'export ANFR, la liste des communes et les pages de dabplus.fr. |
+| `scripts/extraire_multiplex.py` | Produit `data/multiplex-radio-france.csv` à partir des pages de dabplus.fr. |
+| `scripts/extraire_emetteurs.py` | Produit `data/emetteurs.js` à partir de l'export ANFR et y rattache les multiplex de Radio France. |
 | `scripts/assembler_page.py` | Assemble `index.html` à partir de `src/page.html` et `data/emetteurs.js`. |
 | `scripts/comparer_exports.py` | Compare deux exports ANFR (émetteurs retirés ou ajoutés). |
 | `analyses/` | Résultats de comparaisons, dont l'effet de la réorganisation entre fin juin et fin septembre 2026. |
@@ -73,13 +75,13 @@ Le détail par émetteur se trouve dans `analyses/`. Les limites de cette compar
 
 ## Ce que l'outil ne dit pas
 
-- **Quelles radios passent par un émetteur.** L'ANFR ne publie ni le programme ni la fréquence exacte. L'outil ne peut donc pas affirmer que France Musique ou franceinfo passent par l'émetteur le plus favorable. Pour cela, consultez *Ma Radio DAB+* de l'Arcom et le moteur de recherche de Radio France.
+- **Quelles radios passent par un émetteur FM.** L'ANFR ne publie ni le programme ni la fréquence exacte. En DAB+, l'outil reconstitue cette information à partir des décisions de l'Arcom : il sait quels sites diffusent le multiplex national de Radio France (France Inter, franceinfo, France Culture, France Musique, FIP, Mouv') et les stations ICI. En FM, il ne le sait pas : consultez le moteur de recherche de Radio France. Ce rattachement a lui aussi ses limites, décrites dans [docs/incertitudes.md](docs/incertitudes.md).
 - **La puissance des émetteurs.** Elle n'est pas publiée non plus. Le verdict repose sur le masquage et la distance, pas sur un niveau de champ réel.
 - **L'intérieur de votre logement.** L'outil ignore les murs, l'orientation des fenêtres et le modèle de poste.
 
 ## Crédits
 
-- Données : [IGN – Géoplateforme](https://geoservices.ign.fr/) (géocodage, RGE ALTI, BD TOPO, Plan IGN), [ANFR via data.gouv.fr](https://www.data.gouv.fr/datasets/donnees-sur-les-installations-radioelectriques-de-plus-de-5-watts-1), [geo.api.gouv.fr](https://geo.api.gouv.fr/).
+- Données : [IGN – Géoplateforme](https://geoservices.ign.fr/) (géocodage, RGE ALTI, BD TOPO, Plan IGN), [ANFR via data.gouv.fr](https://www.data.gouv.fr/datasets/donnees-sur-les-installations-radioelectriques-de-plus-de-5-watts-1), [geo.api.gouv.fr](https://geo.api.gouv.fr/), décisions de l'Arcom au Journal officiel relevées par [dabplus.fr](https://www.dabplus.fr/).
 - Cartographie : [Carte facile](https://fab-geocommuns.github.io/carte-facile-site/) (Fabrique des géocommuns, IGN) et [MapLibre GL JS](https://maplibre.org/).
 - Projet initié par Matthieu Chatry.
 

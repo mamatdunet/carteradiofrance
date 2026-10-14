@@ -208,7 +208,8 @@ footer{font-size:.82rem;color:var(--muted);border-top:1px solid var(--rule);padd
           <div class="method">
             <div><b>Ce que l'outil ne sait pas</b>
               <ul>
-                <li>La puissance de chaque émetteur et la liste des radios qu'il diffuse : l'ANFR ne les publie pas.</li>
+                <li>La puissance de chaque émetteur : l'ANFR ne la publie pas.</li>
+                <li>Les radios FM de chaque émetteur, ni les radios privées en DAB+.</li>
                 <li>Les réflexions sur les façades, qui ramènent souvent du signal dans les rues étroites.</li>
                 <li>Les murs de votre immeuble, le côté où donnent vos fenêtres, la végétation.</li>
               </ul>
@@ -217,6 +218,7 @@ footer{font-size:.82rem;color:var(--muted);border-top:1px solid var(--rule);padd
               <ul>
                 <li>Adresse, relief RGE ALTI, bâtiments BD TOPO : Géoplateforme IGN, interrogée en direct. Carte : Carte facile.</li>
                 <li>Émetteurs : ANFR, export du 30 septembre 2026 ; les supports à moins de 300 m sont regroupés.</li>
+                <li>Sites DAB+ de Radio France (multiplex national M2 et stations ICI) : décisions de l'Arcom au Journal officiel, relevées par <a href="https://www.dabplus.fr/metropolitain" target="_blank" rel="noopener">dabplus.fr</a> en octobre 2026, rapprochées des supports ANFR par commune.</li>
                 <li>Écoute à 1,2 m du plancher, 3 m par niveau ; courbure terrestre k = 4/3 ; DAB+ à 1,5 m de longueur d'onde, FM à 3 m.</li>
               </ul>
             </div>
@@ -227,8 +229,8 @@ footer{font-size:.82rem;color:var(--muted);border-top:1px solid var(--rule);padd
   </section>
 
   <footer>
-    Estimation indicative, pas une mesure. Pour la liste exacte des radios DAB+ de votre zone, consultez <a href="https://www.arcom.fr/" target="_blank" rel="noopener">Ma Radio DAB+ (Arcom)</a> ; pour les fréquences de Radio France, le <a href="https://www.radiofrance.com/" target="_blank" rel="noopener">moteur de recherche de Radio France</a>.
-    Sources : <a href="https://geoservices.ign.fr/" target="_blank" rel="noopener">IGN Géoplateforme</a> · <a href="https://www.data.gouv.fr/datasets/donnees-sur-les-installations-radioelectriques-de-plus-de-5-watts-1" target="_blank" rel="noopener">ANFR, installations radioélectriques &gt; 5 W</a> · <a href="https://fab-geocommuns.github.io/carte-facile-site/" target="_blank" rel="noopener">Carte facile</a>.
+    Estimation indicative, pas une mesure. Pour la liste complète des radios DAB+ de votre zone, consultez <a href="https://www.arcom.fr/" target="_blank" rel="noopener">Ma Radio DAB+ (Arcom)</a> ; pour les fréquences FM de Radio France, le <a href="https://www.radiofrance.com/frequences" target="_blank" rel="noopener">moteur de recherche de Radio France</a>.
+    Sources : <a href="https://geoservices.ign.fr/" target="_blank" rel="noopener">IGN Géoplateforme</a> · <a href="https://www.data.gouv.fr/datasets/donnees-sur-les-installations-radioelectriques-de-plus-de-5-watts-1" target="_blank" rel="noopener">ANFR, installations radioélectriques &gt; 5 W</a> · <a href="https://www.dabplus.fr/" target="_blank" rel="noopener">dabplus.fr</a> (sites DAB+ publiés au Journal officiel) · <a href="https://fab-geocommuns.github.io/carte-facile-site/" target="_blank" rel="noopener">Carte facile</a>.
   </footer>
 </div>
 
@@ -245,7 +247,8 @@ try {
 const GPF = "https://data.geopf.fr";
 const FLOOR_H = 3.0, EAR = 1.2, RE = 6371000 * 4 / 3, BUILD_R = 350, OWN_R = 5, BUILD_CAP = 20;
 const LAM = {fm: 3.0, dab: 1.5};
-const TX = window.TX.map(r => ({lat:r[0], lon:r[1], insee:r[2], com:r[3], lieu:r[4], fm:r[5], dab:r[6], hant:r[7], ops:r[8]}));
+const TX = window.TX.map(r => ({lat:r[0], lon:r[1], insee:r[2], com:r[3], lieu:r[4], fm:r[5], dab:r[6], hant:r[7], ops:r[8], m2:r[9], ici:r[10]}));
+const NAT = 'France Inter, franceinfo, France Culture, France Musique, FIP et Mouv\'';
 
 const $ = id => document.getElementById(id);
 const esc = t => String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -337,7 +340,7 @@ function chooseSites(lat, lon){
   const groups = [];
   for (const t of near){
     const g = groups.find(g => hav(g.lat, g.lon, t.lat, t.lon) < 300);
-    if (g){ g.fm += t.fm; g.dab += t.dab; g.hant = Math.max(g.hant, t.hant); g.ops = [...new Set((g.ops + ', ' + t.ops).split(', ').filter(Boolean))].sort().join(', '); }
+    if (g){ g.fm += t.fm; g.dab += t.dab; g.hant = Math.max(g.hant, t.hant); g.m2 = g.m2 || t.m2; const u = (a, b) => [...new Set((a + ', ' + b).split(', ').filter(Boolean))].sort().join(', '); g.ops = u(g.ops, t.ops); g.ici = u(g.ici, t.ici); }
     else groups.push(Object.assign({}, t));
   }
   const cand = [];
@@ -349,7 +352,10 @@ function chooseSites(lat, lon){
   }
   const top = [...cand].sort((a, b) => b.score - a.score).slice(0, 4);
   const dab = cand.filter(t => t.dab > 0).sort((a, b) => b.dscore - a.dscore).slice(0, 3);
-  return [...new Set([...top, ...dab])].sort((a, b) => a.d - b.d);
+  // Sites qui diffusent Radio France : le diagnostic porte sur eux, il faut donc toujours les évaluer.
+  const rf = cand.filter(t => t.m2).sort((a, b) => b.dscore - a.dscore).slice(0, 3);
+  const ici = cand.filter(t => t.ici).sort((a, b) => b.dscore - a.dscore).slice(0, 2);
+  return [...new Set([...top, ...dab, ...rf, ...ici])].sort((a, b) => a.d - b.d);
 }
 
 /* ---------- Analyse ---------- */
@@ -471,36 +477,43 @@ const ICONS = {
 };
 function renderDiag(){
   const f = state.floor, S = state.sites, addr = state.addr.label;
-  const dabS = S.filter(t => t.dab > 0);
+  const dabS = S.filter(t => t.dab > 0), m2S = dabS.filter(t => t.m2), iciS = dabS.filter(t => t.ici);
   const bestOf = (arr, band, ff) => arr.reduce((a, b) => effort(b, band, ff) < effort(a, band, ff) ? b : a);
   const fmS = S.filter(t => t.fm > 0);
   const bestFm = fmS.length ? bestOf(fmS, 'fm', f) : null;
   const fmLv = bestFm ? level(effort(bestFm, 'fm', f), 'fm') : null;
+  const kmOf = t => fmt1(t.d / 1000).replace(',0', '');
+  // Station ICI : site le plus favorable parmi ceux qui la diffusent.
+  const iciB = iciS.length ? bestOf(iciS, 'dab', f) : null;
+  const iciTip = iciB ? iciB.ici.split(', ').join(' et ') + ' passe en DAB+ par un multiplex local, depuis un émetteur à ' + kmOf(iciB) + ' km vers ' + dirWords(iciB.az) + ' : réception ' + (level(effort(iciB, 'dab', f)).dab.join(' ').trim().toLowerCase().replace(/,$/, '')) + '.' : null;
   let tone, answer, why, tips = [];
-  if (!dabS.length){
+  if (!m2S.length){
     tone = 'vhi'; answer = '<em>Probablement pas</em> en DAB+';
-    why = 'Aucun émetteur DAB+ n\'est déclaré à moins de 50 km de chez vous. Le DAB+ est encore en cours de déploiement dans certaines zones.';
+    why = dabS.length
+      ? 'Des émetteurs DAB+ existent près de chez vous, mais aucun site du multiplex national qui porte ' + NAT + ' n\'est connu à moins de 50 km. Ce multiplex s\'étend encore, surtout le long des grands axes.'
+      : 'Aucun émetteur DAB+ n\'est déclaré à moins de 50 km de chez vous. Le DAB+ est encore en cours de déploiement dans certaines zones.';
+    if (iciTip) tips.push(iciTip);
     tips.push('Écoutez les antennes de Radio France sur internet (site ou application) en attendant l\'arrivée du DAB+.');
     if (bestFm) tips.push('En FM, la réception s\'annonce ' + fmLv.fm + ' : vérifiez les fréquences disponibles dans votre commune.');
   } else {
-    const b = bestOf(dabS, 'dab', f), x = effort(b, 'dab', f), lv = level(x), r = b.r[f].dab;
+    const b = bestOf(m2S, 'dab', f), x = effort(b, 'dab', f), lv = level(x), r = b.r[f].dab;
     tone = lv.tone; answer = lv.dab[0] + (lv.dab[1] ? ' <em>' + lv.dab[1] + '</em>' : '');
-    const km = fmt1(b.d / 1000).replace(',0', '');
+    const km = kmOf(b);
     const cause = r.lt > r.lb + 3 ? 'le relief' : r.lb > 3 ? 'les immeubles qui vous entourent' : null;
     const sentence = {
-      ok: 'L\'émetteur DAB+ le plus favorable, à ' + km + ' km vers ' + dirWords(b.az) + ', vous atteint dans de bonnes conditions. Un poste DAB+ ordinaire devrait suffire.',
-      mid: 'Un émetteur DAB+ se trouve à ' + km + ' km vers ' + dirWords(b.az) + '. ' + (cause ? 'Le signal est affaibli par ' + cause + ', mais il' : 'Le signal') + ' devrait rester suffisant avec un poste bien placé.',
-      hi: 'L\'émetteur DAB+ le plus proche utilisable est à ' + km + ' km vers ' + dirWords(b.az) + (cause ? ', et ' + cause + ' affaiblissent nettement le signal' : '') + '. À l\'intérieur, la réception risque d\'être intermittente.',
-      vhi: 'Le DAB+ vous parvient très affaibli' + (cause ? ', surtout à cause de ' + cause : '') + ' : l\'émetteur le plus favorable est à ' + km + ' km vers ' + dirWords(b.az) + '. Un poste d\'intérieur risque de ne rien capter.'
+      ok: 'L\'émetteur de Radio France le plus favorable, à ' + km + ' km vers ' + dirWords(b.az) + ', vous atteint dans de bonnes conditions. Un poste DAB+ ordinaire devrait suffire.',
+      mid: 'Un émetteur de Radio France se trouve à ' + km + ' km vers ' + dirWords(b.az) + '. ' + (cause ? 'Le signal est affaibli par ' + cause + ', mais il' : 'Le signal') + ' devrait rester suffisant avec un poste bien placé.',
+      hi: 'L\'émetteur de Radio France le plus proche utilisable est à ' + km + ' km vers ' + dirWords(b.az) + (cause ? ', et ' + cause + ' affaiblissent nettement le signal' : '') + '. À l\'intérieur, la réception risque d\'être intermittente.',
+      vhi: 'Le DAB+ de Radio France vous parvient très affaibli' + (cause ? ', surtout à cause ' + (cause === 'le relief' ? 'du relief' : 'des immeubles qui vous entourent') : '') + ' : l\'émetteur le plus favorable est à ' + km + ' km vers ' + dirWords(b.az) + '. Un poste d\'intérieur risque de ne rien capter.'
     }[tone];
-    why = sentence;
+    why = sentence + ' Il diffuse le multiplex national qui porte ' + NAT + '.';
     if (tone !== 'ok') tips.push('Placez le poste près d\'une fenêtre orientée vers ' + dirWords(b.az) + ', antenne déployée.');
     const up = effort(b, 'dab', f + 3), down = f > 0 ? effort(b, 'dab', Math.max(0, f - 3)) : null;
     if (tone !== 'ok' && up < x - 4) tips.push('Trois étages plus haut, le signal serait nettement meilleur' + (level(up).tone !== tone ? ' (' + (level(up).dab[0] + ' ' + level(up).dab[1]).trim().toLowerCase().replace(/,$/, '') + ')' : '') + ' : les immeubles voisins vous masquent moins.');
     else if (down != null && down > x + 4) tips.push('Plus bas dans l\'immeuble, la réception serait plus difficile.');
     if (tone === 'hi' || tone === 'vhi') tips.push('Une antenne extérieure ou sur le toit change souvent tout ; sinon, l\'écoute par internet reste possible.');
     if (tone === 'ok') tips.push('Lancez une recherche automatique des stations sur votre poste DAB+ pour mémoriser les radios disponibles.');
-    tips.push('Vérifiez sur Ma Radio DAB+ (Arcom) quelles radios sont diffusées dans votre zone : l\'outil ne sait pas lesquelles passent par cet émetteur.');
+    if (iciTip) tips.push(iciTip);
   }
   const fmLine = bestFm
     ? '<span class="lbl">Et en FM ?</span><span class="pill"><i style="background:var(--' + (fmLv.tone === 'hiC' ? 'hi' : fmLv.tone) + ')"></i>Réception ' + fmLv.fm + '</span><span class="sub">Émetteur le plus favorable à ' + fmt1(bestFm.d / 1000) + ' km vers ' + dirWords(bestFm.az) + '. Depuis juillet, certaines antennes de Radio France (France Musique, Mouv\') ne sont plus en FM partout.</span>'
@@ -573,7 +586,7 @@ function styleMap(){
     properties: {i, focus: focus === i, col: toneColor(rayTone(t)), tip: '<b>' + esc(txName(t)) + '</b><br>' + fmt1(t.d / 1000) + ' km · ' + (t.dab ? 'DAB+ : ' + esc(level(effort(t, 'dab', state.floor)).dab.join(' ').trim().toLowerCase()) : 'FM seulement')},
     geometry: {type: 'LineString', coordinates: [[h.lon, h.lat], [t.lon, t.lat]]}}))});
   map.getSource('tx').setData({type: 'FeatureCollection', features: state.sites.map((t, i) => ({type: 'Feature',
-    properties: {i, col: t.dab ? C.dab : C.fm, tip: '<b>' + esc(txName(t)) + '</b><br>Antenne à ' + Math.round(t.zant) + ' m · ' + t.fm + ' FM, ' + t.dab + ' DAB+'},
+    properties: {i, col: t.dab ? C.dab : C.fm, tip: '<b>' + esc(txName(t)) + '</b><br>Antenne à ' + Math.round(t.zant) + ' m · ' + t.fm + ' FM, ' + t.dab + ' DAB+' + (rfLabel(t) ? '<br>' + esc(rfLabel(t)) : '')},
     geometry: {type: 'Point', coordinates: [t.lon, t.lat]}}))});
 }
 function restyleMapColors(){
@@ -589,7 +602,7 @@ function setView(v, instant){
   $('v-local').setAttribute('aria-pressed', v === 'local'); $('v-all').setAttribute('aria-pressed', v === 'all');
   const h = state.addr, opt = {duration: instant || matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 900};
   if (v === 'local'){
-    const ds = state.sites.filter(t => t.dab), b = ds.length ? ds.reduce((a, c) => effort(c, 'dab', state.floor) < effort(a, 'dab', state.floor) ? c : a) : state.sites[0];
+    const dd = state.sites.filter(t => t.dab), ds = dd.some(t => t.m2) ? dd.filter(t => t.m2) : dd, b = ds.length ? ds.reduce((a, c) => effort(c, 'dab', state.floor) < effort(a, 'dab', state.floor) ? c : a) : state.sites[0];
     map.easeTo(Object.assign({center: [h.lon, h.lat], zoom: 17, pitch: 58, bearing: (b.az + 180) % 360 - 180}, opt));
   } else {
     const pts = [[h.lon, h.lat], ...state.sites.map(t => [t.lon, t.lat])];
@@ -614,6 +627,7 @@ function comName(t){
 const ABBR = {'R':'rue','Av':'avenue','Bd':'boulevard','Pl':'place','Rte':'route','Ch':'chemin','Che':'chemin','Imp':'impasse','All':'allée','Qu':'quai','Sq':'square'};
 function lieuName(s){ return titleCase(s).replace(/^(\d+)?[,\s]*(R|Av|Bd|Pl|Rte|Ch|Che|Imp|All|Qu|Sq)\.?\s+/, (m, num, w) => (num ? num + ' ' : '') + ABBR[w] + ' '); }
 const txName = t => comName(t) + (t.lieu ? ' · ' + lieuName(t.lieu) : '');
+const rfLabel = t => [t.m2 ? 'Radio France nationale' : '', t.ici].filter(Boolean).join(', ');
 
 /* ---------- Détail technique ---------- */
 function badge(l){ const [t, c] = cls(l); return '<span class="badge"><i style="background:var(--' + (c === 'hiC' ? 'hi' : c) + ')"></i>' + t + ' <span class="mono" style="font-weight:400">' + fmt1(l) + ' dB</span></span>'; }
@@ -621,7 +635,7 @@ function render(){
   readC();
   renderDiag();
   const f = state.floor, S = state.sites;
-  $('txrows').innerHTML = S.map((t, i) => { const r = t.r[f]; return '<tr class="tx" data-i="' + i + '" tabindex="0"><td><div class="txname">' + esc(txName(t)) + '</div><div class="txmeta">' + cardinal(t.az) + ' · antenne à ' + Math.round(t.zant) + ' m · ' + t.fm + ' FM, ' + t.dab + ' DAB+' + (t.ops ? ' · ' + esc(t.ops) : '') + '</div></td><td class="n">' + fmt1(t.d / 1000) + ' km</td><td>' + (t.dab ? badge(r.dab.loss) : '<span class="txmeta">pas de DAB+</span>') + '</td><td>' + (t.fm ? badge(r.fm.loss) : '<span class="txmeta">pas de FM</span>') + '</td></tr>'; }).join('');
+  $('txrows').innerHTML = S.map((t, i) => { const r = t.r[f]; return '<tr class="tx" data-i="' + i + '" tabindex="0"><td><div class="txname">' + esc(txName(t)) + '</div><div class="txmeta">' + cardinal(t.az) + ' · antenne à ' + Math.round(t.zant) + ' m · ' + t.fm + ' FM, ' + t.dab + ' DAB+' + (t.ops ? ' · ' + esc(t.ops) : '') + (rfLabel(t) ? ' · <b>' + esc(rfLabel(t)) + '</b>' : '') + '</div></td><td class="n">' + fmt1(t.d / 1000) + ' km</td><td>' + (t.dab ? badge(r.dab.loss) : '<span class="txmeta">pas de DAB+</span>') + '</td><td>' + (t.fm ? badge(r.fm.loss) : '<span class="txmeta">pas de FM</span>') + '</td></tr>'; }).join('');
   document.querySelectorAll('tr.tx').forEach(tr => { const i = +tr.dataset.i; tr.onclick = () => openTech(i); tr.onkeydown = e => { if (e.key === 'Enter') openTech(i); }; tr.onmouseenter = () => { focus = i; styleMap(); }; tr.onmouseleave = () => { focus = null; styleMap(); }; });
   $('profiles').innerHTML = S.map((t, i) => { const r = t.r[f]; return '<article class="prof" id="prof' + i + '"><div class="ph"><h3>' + esc(txName(t)) + '</h3><span class="mono sub">' + fmt1(t.d / 1000) + ' km · ' + cardinal(t.az) + ' (' + Math.round(t.az) + '°)</span></div>'
     + '<div class="figs">' + (t.dab ? '<span>DAB+ <b>' + fmt1(r.dab.loss) + ' dB</b></span>' : '') + (t.fm ? '<span>FM <b>' + fmt1(r.fm.loss) + ' dB</b> (relief ' + fmt1(r.fm.lt) + ' + bâti ' + fmt1(r.fm.lb) + ')</span>' : '') + '<span>angle de visée <b>' + fmt1(r.ang) + '°</b></span></div>'

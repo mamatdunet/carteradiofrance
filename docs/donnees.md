@@ -19,9 +19,25 @@
 
 **Ce que le jeu de données ne contient pas** :
 - **La fréquence exacte.** La table des bandes (`SUP_BANDE`) indique 87,5–108 MHz pour la quasi-totalité des émetteurs FM et 174–223 MHz pour le DAB+.
-- **Le nom du programme diffusé.**
+- **Le nom du programme ou du multiplex diffusé.** Pour le DAB+, il est reconstitué à partir des décisions de l'Arcom (section suivante).
 - **La puissance rayonnée et le diagramme d'antenne.**
 - **La zone de couverture.**
+
+## Sites DAB+ de Radio France : décisions de l'Arcom relevées par dabplus.fr
+
+L'ANFR ne dit pas quel multiplex passe par quel émetteur. Cette information figure dans les décisions de l'Arcom publiées au Journal officiel : autorisation de chaque multiplex, puis agrément de chaque site d'émission. Elle n'existe pas en données ouvertes structurées. Le site [dabplus.fr](https://www.dabplus.fr/), tenu par un particulier, la recopie zone par zone : radios de chaque multiplex, sites d'émission, puissance apparente rayonnée, altitude, hauteur d'antenne et lien vers la décision au Journal officiel.
+
+**Ce qu'on en retient** (`scripts/extraire_multiplex.py` → `data/multiplex-radio-france.csv`) :
+- le **multiplex métropolitain M2**, qui porte France Inter, franceinfo, France Culture, France Musique, FIP et Mouv'. En métropole, ces six radios ne passent en DAB+ que par ce multiplex ;
+- les **multiplex locaux et étendus** qui portent une station **ICI** (ex-France Bleu).
+
+Relevé d'octobre 2026 : 515 sites, dont 317 pour le M2. Chaque ligne cite la décision du Journal officiel correspondante, ce qui permet de la vérifier.
+
+**Rattachement aux supports ANFR** (`scripts/extraire_emetteurs.py`). Chaque site de la liste est rattaché au support DAB+ de l'ANFR situé dans le même département et la même commune. Quand plusieurs supports conviennent, on départage par le diffuseur (TDF, towerCast), puis par les mots communs du lieu-dit. Des supports distants de moins de 1 km sont considérés comme un même site. Les communes nouvelles, les anciennes communes et les arrondissements de Paris, Lyon et Marseille sont gérés. Un seul rattachement est manuel (Cases-de-Pène → Baixas, documenté dans le script).
+
+Résultat : 322 supports diffusent le M2 et 190 une station ICI. **7 sites sur 515 ne sont pas rattachés**, faute de support DAB+ déclaré à l'ANFR dans la commune : 2 sites M2 (Morêtel-de-Mailles, La Ferté-sous-Jouarre) et 5 sites de multiplex locaux. Le script les liste à chaque exécution.
+
+**Licence** : dabplus.fr n'affiche pas de licence. Son fichier `robots.txt` autorise la réutilisation, y compris par des outils d'IA. Les informations reprises sont des faits publiés au Journal officiel. Le dépôt ne conserve pas les pages, seulement la liste des sites avec leur source.
 
 ## Communes : geo.api.gouv.fr
 

@@ -9,14 +9,16 @@ adresse + étage
    │
    ├─ géocodage (IGN) ──────────────► point (lon, lat)
    │
-   ├─ sélection des sites ANFR ─────► jusqu'à 6 sites FM/DAB+ à moins de 50 km
+   ├─ sélection des sites ANFR ─────► une dizaine de sites FM/DAB+ à moins de 50 km,
+   │                                   dont ceux qui diffusent Radio France
    │
    ├─ pour chaque site :
    │     profil du relief (RGE ALTI) ─► obstacle de relief le plus pénalisant
    │     bâtiments ≤ 350 m (BD TOPO) ─► obstacle bâti le plus pénalisant
    │     → atténuation relief + bâti, en FM et en DAB+
    │
-   └─ verdict en clair à partir du site DAB+ le plus favorable
+   └─ verdict en clair à partir du site le plus favorable
+      parmi ceux qui diffusent le multiplex national de Radio France (M2)
 ```
 
 ## 1. Géocodage
@@ -29,7 +31,7 @@ L'altitude du sol au point d'écoute est la première valeur du profil de relief
 
 On part des 4 666 supports portant au moins un émetteur FM ou DAB+ dans l'export ANFR (voir [donnees.md](donnees.md)).
 
-1. **Regroupement** : les supports distants de moins de 300 m sont fusionnés en un seul site, car plusieurs pylônes sont souvent installés sur un même point haut. Les nombres d'émetteurs s'additionnent, et on garde la hauteur d'antenne maximale.
+1. **Regroupement** : les supports distants de moins de 300 m sont fusionnés en un seul site, car plusieurs pylônes sont souvent installés sur un même point haut. Les nombres d'émetteurs s'additionnent, et on garde la hauteur d'antenne maximale. Le site diffuse Radio France si l'un de ses supports la diffuse.
 2. **Filtre** : seuls les sites situés entre 50 m et 50 km de l'adresse sont retenus.
 3. **Score** de chaque site :
 
@@ -38,7 +40,13 @@ On part des 4 666 supports portant au moins un émetteur FM ou DAB+ dans l'expor
    score_DAB = nb_DAB × √max(hauteur_antenne, 5) / (distance_km + 2)²
    ```
 
-4. **Retenus** : les 4 meilleurs sites selon `score`, plus les 3 meilleurs selon `score_DAB`, sans doublon. On garde donc jusqu'à 6 sites, triés par distance.
+4. **Retenus**, sans doublon et triés par distance :
+   - les 4 meilleurs sites selon `score` ;
+   - les 3 meilleurs selon `score_DAB` ;
+   - les 3 meilleurs selon `score_DAB` parmi les sites qui diffusent le multiplex national M2 (France Inter, franceinfo, France Culture, France Musique, FIP, Mouv') ;
+   - les 2 meilleurs selon `score_DAB` parmi les sites qui diffusent une station ICI.
+
+   Le verdict porte sur les sites M2 : ils doivent donc être évalués même quand d'autres sites, plus gros ou plus proches, les devancent. Le rattachement d'un site ANFR à Radio France est décrit dans [donnees.md](donnees.md#sites-dab-de-radio-france--décisions-de-larcom-relevées-par-dabplusfr).
 
 Ce score est une heuristique. Il favorise les sites importants (beaucoup d'émetteurs, antennes hautes) et proches, faute de connaître la puissance réelle des émetteurs.
 
@@ -89,7 +97,7 @@ effort = atténuation_totale + 20·log10( max(distance_km, 1) / 5 )
 
 Le terme de distance applique une pénalité de 20 dB par décade, à partir de 5 km.
 
-**Verdict DAB+.** On prend le site DAB+ qui a l'effort le plus faible :
+**Verdict DAB+.** On prend, parmi les sites qui diffusent le multiplex national M2, celui qui a l'effort le plus faible. Les autres sites DAB+ ne comptent pas : ils diffusent des radios privées ou locales.
 
 | Effort DAB+ | Verdict affiché |
 |---|---|
@@ -98,7 +106,9 @@ Le terme de distance applique une pénalité de 20 dB par décade, à partir de 
 | ≤ 38 | C'est incertain |
 | > 38 | Difficilement |
 
-**Cas sans DAB+.** Si aucun site DAB+ n'est retenu à moins de 50 km, le verdict est « Probablement pas en DAB+ ».
+**Cas sans multiplex M2.** Si aucun site M2 n'est retenu à moins de 50 km, le verdict est « Probablement pas en DAB+ ». Le texte précise s'il existe malgré tout des émetteurs DAB+ (d'autres multiplex) à proximité.
+
+**Stations ICI.** Quand un site retenu diffuse une station ICI par un multiplex local, un conseil indique laquelle, la distance et le palier atteint, calculé de la même façon.
 
 **Verdict FM.** Il utilise les mêmes paliers décalés de 8 dB : bonne ≤ 24, correcte ≤ 36, fragile ≤ 46, difficile au-delà. La FM se dégrade en effet progressivement (souffle, passage en mono), et ses émetteurs principaux sont en général puissants.
 
